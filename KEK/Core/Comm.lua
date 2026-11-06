@@ -103,7 +103,7 @@ function Comm:OnLogin()
   C_Timer.NewTicker(60, function() self:DiscoverFriends() end)
   C_Timer.After(5, function() self:Connect() end)
   ns:RegisterEvent("PLAYER_GUILD_UPDATE", function()
-    ns:Debounce("comm-guild", 3, function() self:Connect() end)
+    ns:Debounce("comm-guild", 3, function() self:Connect(); self:CheckGuild() end)
   end)
   ns:RegisterEvent("GROUP_ROSTER_UPDATE", function()
     ns:Debounce("comm-group", 2, function() self:OnGroupChanged() end)
@@ -149,7 +149,63 @@ function Comm:Connect()
   if tag then
     ns:Fire("COMM_READY")
     self:Discover()
+    self:CheckGuild()
   end
+end
+
+-- ------------------------------------------------------------------ guilde
+-- Sur WoW Forever, un message d'addon envoyé à la guilde peut ne jamais revenir (autotest de la 1.8.0).
+-- KEK ne passe donc par la guilde que si elle a fait ses preuves : son propre message revenu (écho), ou un
+-- message de guilde reçu d'un autre joueur. Sinon, il chuchote à chaque membre de la guilde.
+Comm.guildEcho = nil   -- nil : pas encore testé · true : écho reçu · false : pas d'écho
+Comm.guildFrom = {}    -- [nom] = GetTime() : messages de guilde reçus d'autres joueurs
+
+function Comm:GuildWorks()
+  return self.guildEcho == true or next(self.guildFrom) ~= nil
+end
+
+-- Testée, et rien ne passe : ni écho, ni message d'un autre joueur.
+function Comm:GuildSilent()
+  return self.guildEcho == false and next(self.guildFrom) == nil
+end
+
+function Comm:CheckGuild(force)
+  if not self.tag or not IsInGuild() then return end
+  local name = GetGuildInfo("player")
+  if name and self.guildFor and name ~= self.guildFor then    -- nouvelle guilde : on reprend de zéro
+    self.guildEcho = nil
+    wipe(self.guildFrom)
+  end
+  self.guildFor = name or self.guildFor
+  if self.guildChecking or (self.guildEcho ~= nil and not force) then return end
+  if self:Locked() then
+    C_Timer.After(30, function() self:CheckGuild(force) end)
+    return
+  end
+  self.guildChecking = true
+  self:Probe("GUILD", nil, function(ok)
+    self.guildChecking = nil
+    self:SetGuildEcho(ok)
+  end, "s")
+end
+
+function Comm:SetGuildEcho(ok)
+  local before = self:GuildWorks()
+  self.guildEcho = ok and true or false
+  if self:GuildWorks() ~= before then ns:Fire("COMM_STATUS", self.mode) end
+  if self:IsGuildBand() and self:GuildSilent() and not self.guildWarned then
+    self.guildWarned = true
+    ns.Print(L["la guilde ne transmet pas les messages d'addon ici : choisissez un même code de bande entre amis (Réglages > Bande) pour vous retrouver."])
+  end
+end
+
+-- Un message de guilde est arrivé d'un autre joueur : la guilde transmet.
+function Comm:OnGuildMessage(sender)
+  local who = U.FullName(sender)
+  if not who or who == ns.me then return end
+  local before = self:GuildWorks()
+  self.guildFrom[who] = GetTime()
+  if not before then ns:Fire("COMM_STATUS", self.mode) end
 end
 
 -- Changement de code : on prévient l'ancienne bande et on repart de zéro.
@@ -166,7 +222,10 @@ end
 
 function Comm:StatusText()
   if self.mode == "ready" then
-    if self:IsGuildBand() then return L["Via la guilde"], true end
+    if self:IsGuildBand() then
+      if self:GuildSilent() then return L["La guilde ne transmet rien"], false end
+      return L["Via la guilde"], true
+    end
     return L["Bande privée"], true
   end
   if self.mode == "none" then return L["Hors ligne — aucun code"], false end
@@ -203,7 +262,7 @@ end
 
 function Comm:DoDiscover()
   local hello = self:Hello()
-  if IsInGuild() then self:SendTo("H", hello, 1, "GUILD") end
+  if IsInGuild() and not self:GuildSilent() then self:SendTo("H", hello, 1, "GUILD") end   -- inutile si la guilde ne transmet rien
   if self:IsGuildBand() then return end
   local group = self:GroupChannel()
   if group then
@@ -377,7 +436,7 @@ function Comm:Routes()
     if m and name ~= ns.me then
       if group and inGroup[name] then
         useGroup = true
-      elseif guild and m.guild == guild then
+      elseif guild and m.guild == guild and self:GuildWorks() then
         useGuild = true
       else
         whispers[#whispers + 1] = name
@@ -680,6 +739,7 @@ end
 
 function Comm:OnMessage(prefix, text, dist, sender)
   if U.Secret(prefix) or U.Secret(text) or U.Secret(sender) then return end   -- illisible en donjon
+  if prefix == PREFIX and dist == "GUILD" then self:OnGuildMessage(sender) end
   if prefix == PREFIX and type(text) == "string" and text:sub(1, 1) == "?" then
     local kind = text:sub(2, 2)
     if kind:match("%d") then                     -- autotest de la version 1.5.0

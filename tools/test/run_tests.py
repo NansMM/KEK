@@ -81,6 +81,11 @@ def pump(clients, seconds, step=0.25):
                 elif dist == "GUILD":
                     dest = [d for d in clients if d.online and d.M.player.guild
                             and d.M.player.guild == c.M.player.guild]
+                    # WoW Forever : la guilde peut ne rien transmettre, ou ne pas renvoyer l'écho
+                    if c.M.guildMode == "blocked":
+                        dest = []
+                    elif c.M.guildMode == "noecho":
+                        dest = [d for d in dest if d is not c]
                 elif dist in ("PARTY", "RAID"):
                     dest = [d for d in clients if d.online and (d is c or d.name in group_of(c) or d.full in group_of(c))]
                 else:
@@ -1030,6 +1035,67 @@ def main():
     check(p1.M.settled, "rafraîchissement : aucune barre d'XP ne glisse d'un membre à l'autre")
     check(p1.M.levelUpStart is not None and p1.M.levelUpStart < 0.1 and p1.M.levelUpSettled,
           "niveau gagné : la barre repart de zéro puis rejoint 10 %% (%.3f au départ)" % (p1.M.levelUpStart or -1))
+
+    print("Guilde qui ne transmet pas les messages d'addon (WoW Forever)")
+    q1 = Client("Ines", "MAGE", "Player-1-0012", 15)
+    q2 = Client("Jules", "WARRIOR", "Player-1-0013", 15)
+    qq = [q1, q2]
+    for c, other in ((q1, "Jules"), (q2, "Ines")):
+        c.M.player.guild = "Les Loups"
+        c.M.guildMode = "blocked"
+        c.M.friends = c.lua.table(c.lua.table_from({"name": other, "connected": True}))
+    start = len(SENT)
+    for c in qq:
+        c.lua.globals().SlashCmdList.KEK("code loups")
+    pump(qq, 20)
+    C1 = q1.ns.Comm
+    check(q1.ns.Store.IsOnline(q1.ns.Store, q2.full) and q2.ns.Store.IsOnline(q2.ns.Store, q1.full),
+          "même guilde, guilde muette : Ines et Jules se trouvent quand même")
+    check(C1.guildEcho is False and not C1.GuildWorks(C1), "guilde testée à la connexion : pas d'écho")
+    first = [x for x in SENT[start:] if x[1] == "GUILD" and x[0] == "Ines"]
+    check(len(first) == 2, "à la connexion, Ines envoie à la guilde un bonjour et un test (%d message(s))" % len(first))
+    start = len(SENT)
+    q2.M.player.level = 16
+    q2.M.fire("PLAYER_LEVEL_UP", 16)
+    q1.ns.Comm.Discover(q1.ns.Comm, True)       # retour de donjon : nouvelle découverte
+    pump(qq, 12)
+    check(q1.ns.db.members[q2.full].level == 16, "le niveau de Jules arrive quand même (chuchotements)")
+    guild_sends = [x for x in SENT[start:] if x[1] == "GUILD"]
+    check(len(guild_sends) == 0, "ensuite, plus rien n'est envoyé à la guilde muette (%d message(s))" % len(guild_sends))
+    q1.ns.Autotest.Run(q1.ns.Autotest)
+    pump(qq, 7)
+    gline = [l for l in q1.ns.Autotest.last.text.split("\n") if "Message de guilde" in l]
+    print("       |", gline[0] if gline else "(pas de ligne)")
+    check(gline and gline[0].startswith("[i]") and "par chuchotement" in gline[0],
+          "autotest : pas d'écho, KEK passe par les chuchotements (info, rien à faire)")
+    # la guilde transmet aux autres, mais sans écho : un message de Jules suffit à le prouver
+    for c in qq:
+        c.M.guildMode = "noecho"
+    start = len(SENT)
+    q2.ns.Comm.CheckGuild(q2.ns.Comm, True)
+    pump(qq, 6)
+    check(C1.GuildWorks(C1) and C1.guildFrom[q2.full] is not None, "message de guilde reçu de Jules : la guilde transmet")
+    q1.ns.Sync.SendState(q1.ns.Sync)
+    pump(qq, 3)
+    check(any(x[0] == "Ines" and x[1] == "GUILD" for x in SENT[start:]), "Ines passe alors par la guilde")
+    check(q2.ns.Comm.GuildWorks(q2.ns.Comm), "et Jules, qui reçoit Ines par la guilde, aussi")
+    clients += qq
+
+    print("Bande de guilde (sans code) sur une guilde muette")
+    k1 = Client("Karl", "MAGE", "Player-1-0014", 9)
+    k1.M.player.guild = "Les Muets"
+    k1.M.guildMode = "blocked"
+    k1.M.fire("PLAYER_GUILD_UPDATE")
+    pump([k1], 12)
+    check(k1.ns.Comm.IsGuildBand(k1.ns.Comm) and k1.ns.Comm.GuildSilent(k1.ns.Comm), "guilde testée : rien ne passe")
+    check(any("ne transmet pas les messages d'addon" in t for t in k1.M.printed.values()),
+          "KEK prévient : choisissez un même code de bande")
+    check(k1.ns.Comm.StatusText(k1.ns.Comm)[0] == "La guilde ne transmet rien", "statut de la fenêtre : « La guilde ne transmet rien »")
+    k1.ns.Autotest.Run(k1.ns.Autotest)
+    pump([k1], 7)
+    kline = [l for l in k1.ns.Autotest.last.text.split("\n") if "Message de guilde" in l]
+    check(kline and kline[0].startswith("[X]"), "autotest : problème signalé (bande de guilde impossible)")
+    clients += [k1]
 
     print("Menu Options : repli si l'API du jeu diffère")
     z = Client("Zoe", "MAGE", "Player-1-0007", 5, pre="function Settings.RegisterProxySetting() error('signature différente') end")

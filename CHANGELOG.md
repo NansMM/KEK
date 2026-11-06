@@ -1,5 +1,11 @@
 # Historique de KEK
 
+## 1.8.1 — 7 novembre 2026
+
+- Guilde : sur WoW Forever, un message d'addon envoyé à la guilde peut ne jamais arriver. KEK teste maintenant la guilde à la connexion et ne passe par elle que si elle transmet vraiment (son propre message revient, ou un message de guilde arrive d'un autre joueur). Sinon, il parle aux membres de ta guilde par chuchotement, comme aux autres amis.
+- Bande de guilde (sans code) : si la guilde ne transmet rien, KEK le dit dans le chat et dans la fenêtre (« La guilde ne transmet rien ») et conseille de choisir un code de bande.
+- Autotest : la ligne « Message de guilde » indique par où KEK passe et de qui il a reçu des messages de guilde.
+
 ## 1.8.0 — 7 novembre 2026
 
 - Présence lue dans le jeu : KEK se sert aussi de ta liste d'amis, de tes amis Battle.net, de ta guilde et de ton groupe pour savoir qui est connecté.

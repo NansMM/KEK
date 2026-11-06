@@ -39,7 +39,7 @@ Toute la bande doit avoir une version récente : les versions trop anciennes ne 
 - Entrez tous **le même code secret** (ex. `loutres`). Seuls ceux qui ont le même code font partie de ta bande.
 - KEK retrouve tout seul les membres de la bande dans ta **guilde**, ton **groupe** et ta **liste d'amis** (amis du jeu et amis Battle.net). Il leur parle ensuite par des messages d'addon invisibles dans le chat. Tant qu'un ami ne répond pas, KEK le resonde toutes les 3 minutes : peu importe qui entre le code en premier.
 - Un ami n'apparaît pas ? Clique sur **+** dans « La bande » (ou tape `/kek ajouter NomDuPerso`) et entre le nom d'un de ses personnages : sur WoW Forever, **prénom et nom de famille** (ex. `Philipon Dugard`). Dès qu'il répond, il te présente aussi le reste de la bande.
-- Pas de code ? Si vous êtes dans la même guilde, la bande, c'est la guilde : tous ses membres qui ont KEK apparaissent.
+- Pas de code ? Si vous êtes dans la même guilde, la bande, c'est la guilde : tous ses membres qui ont KEK apparaissent. Attention : sur WoW Forever, la guilde ne transmet pas toujours les messages d'addon. KEK la teste à la connexion ; si rien ne passe, il l'affiche (« La guilde ne transmet rien ») et il vous faut un code de bande. Avec un code, KEK teste aussi la guilde et, si elle ne transmet rien, passe par les chuchotements : rien à faire.
 
 > Pourquoi pas un canal privé ? WoW Classic interdit aux addons d'envoyer leurs messages sur un canal de discussion personnalisé. C'est ce qui provoquait le message « KEK a été bloqué… » dans la version 1.0.0.
 

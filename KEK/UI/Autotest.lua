@@ -338,7 +338,7 @@ function Autotest:Run()
     results[#results + 1] = { label = L["Message à soi-même"], status = "info", detail = L["impossible en donjon : relance l'autotest dehors"] }
   else
     probes[#probes + 1] = { label = L["Chuchotement à soi-même"], dist = "WHISPER", target = U.Short(ns.me), kind = "s", self = true }
-    if IsInGuild() then probes[#probes + 1] = { label = L["Message de guilde"], dist = "GUILD", kind = "s" } end
+    if IsInGuild() then probes[#probes + 1] = { label = L["Message de guilde"], dist = "GUILD", kind = "s", guild = true } end
     local group = ns.Comm:GroupChannel()
     if group then probes[#probes + 1] = { label = L["Message de groupe"], dist = group, kind = "s" } end
     -- amis à tester : ceux de la bande en ligne, sinon les amis en ligne (ceux qui ont KEK répondent,
@@ -377,6 +377,7 @@ function Autotest:Run()
     local pingOk = false
     for _, r in ipairs(results) do if r.ping and r.status == "ok" then pingOk = true end end
     for _, r in ipairs(results) do
+      if r.guild then self:GuildVerdict(r) end
       if r.self and r.status ~= "ok" then
         if pingOk then
           r.status, r.detail = "info", L["pas d'écho vers soi-même (normal ici) : les chuchotements avec tes amis marchent"]
@@ -391,7 +392,9 @@ function Autotest:Run()
   if pending == 0 then finish() return end
   for _, p in ipairs(probes) do
     local function done(ok, detail)
-      results[#results + 1] = { label = p.label, status = ok and "ok" or "warn", detail = detail, self = p.self, ping = p.ping and not p.bn }
+      if p.guild then ns.Comm:SetGuildEcho(ok) end
+      results[#results + 1] = { label = p.label, status = ok and "ok" or "warn", detail = detail, self = p.self,
+        ping = p.ping and not p.bn, guild = p.guild, echo = ok }
       pending = pending - 1
       if pending == 0 then finish() end
     end
@@ -400,6 +403,30 @@ function Autotest:Run()
     else
       ns.Comm:Probe(p.dist, p.target, done, p.kind)
     end
+  end
+end
+
+-- Message de guilde : l'écho, les messages de guilde reçus d'autres joueurs, et par où KEK passe.
+function Autotest:GuildVerdict(r)
+  local Comm = ns.Comm
+  local from = {}
+  for name in pairs(Comm.guildFrom) do from[#from + 1] = U.Short(name) end
+  table.sort(from)
+  local others = #from > 0 and string.format(L["messages de guilde reçus de : %s"], table.concat(from, ", ", 1, math.min(3, #from)))
+    or L["aucun message de guilde reçu d'un autre joueur pour l'instant"]
+  if r.echo then
+    r.detail = r.detail .. " · " .. L["KEK passe par la guilde pour les membres de ta guilde"]
+  elseif Comm:GuildWorks() then
+    r.status = "info"
+    r.detail = L["pas d'écho vers soi-même"] .. ", " .. others .. " · " .. L["la guilde transmet : KEK passe par elle"]
+  elseif Comm:IsGuildBand() then
+    r.status = "fail"
+    r.detail = L["envoyé, mais rien ne revient et aucun message de guilde reçu"] .. " · "
+      .. L["sans code, la bande de guilde ne peut pas marcher ici : choisissez un même code de bande entre amis"]
+  else
+    r.status = "info"
+    r.detail = L["envoyé, mais pas reçu en retour"] .. " · " .. others .. " · "
+      .. L["KEK parle aux membres de ta guilde par chuchotement (rien à faire)"]
   end
 end
 

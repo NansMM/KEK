@@ -1,0 +1,17 @@
+Sons personnalisés de KEK
+=========================
+
+Dépose ici des fichiers .ogg (ou renomme tes .mp3 en suivant les mêmes noms) pour
+remplacer les sons du jeu :
+
+  level.ogg     un ami monte de niveau
+  max.ogg       un ami atteint le niveau 60
+  loot.ogg      butin rare / épique / légendaire
+  death.ogg     un ami meurt
+  boss.ogg      un boss est vaincu
+  skill.ogg     palier de métier (75, 150, 225, 300)
+  presence.ogg  un ami se connecte ou se déconnecte
+  need.ogg      un ami a besoin de quelque chose
+
+Important : WoW ne voit les nouveaux fichiers qu'après un redémarrage complet du jeu
+(un simple /reload ne suffit pas). Sans fichier, KEK utilise un son du jeu.

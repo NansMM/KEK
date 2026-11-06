@@ -1,5 +1,14 @@
 # Historique de KEK
 
+## 1.8.0 — 7 novembre 2026
+
+- Présence lue dans le jeu : KEK se sert aussi de ta liste d'amis, de tes amis Battle.net, de ta guilde et de ton groupe pour savoir qui est connecté.
+  - Un ami qui se déconnecte passe hors ligne tout de suite (avant : jusqu'à 6 minutes s'il plantait ou se déconnectait depuis un donjon).
+  - En donjon, le jeu coupe les messages des addons : tes amis restent « En donjon » au lieu de passer hors ligne au bout de 5 minutes.
+  - Niveau et zone de tes amis tenus à jour même quand leurs messages ne passent pas.
+- Autotest : nouvelle ligne « Présence lue dans le jeu ».
+- La bande : les barres d'XP ne sautent plus à chaque rafraîchissement (en vol, la zone change souvent). Chaque membre garde sa ligne, et la barre ne s'anime que quand il gagne de l'XP ; quand il gagne un niveau, elle repart de zéro.
+
 ## 1.7.2
 
 - Besoins : le Maj+clic sur un objet marche partout (lien dans le chat, fenêtre de métier, butin, sacs), même pour un objet que tu n'as jamais eu. Plus besoin de cliquer d'abord dans le champ : il suffit que la liste des besoins soit affichée.

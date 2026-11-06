@@ -396,7 +396,21 @@ end
 function UnitClass(u) return P.classLoc, P.class end
 function UnitRace(u) return P.raceLoc, P.race end
 function UnitSex(u) return 2 end
-function UnitLevel(u) return P.level end
+M.groupState = {}
+local function groupMember(u)
+  local i = tonumber(tostring(u):match("^party(%d+)$") or tostring(u):match("^raid(%d+)$"))
+  return i and M.group and M.group[i] or nil
+end
+function UnitLevel(u)
+  local g = groupMember(u)
+  if g then return (M.groupState[g] or {}).level end
+  return P.level
+end
+function UnitIsConnected(u)
+  local g = groupMember(u)
+  if g then return (M.groupState[g] or {}).connected ~= false end
+  return u == "player"
+end
 function UnitXP(u) return P.xp end
 function UnitXPMax(u) return P.xpMax end
 function GetXPExhaustion() return P.rested end
@@ -417,7 +431,7 @@ function BNSendGameData(id, prefix, text)
   M.bnOutbox[#M.bnOutbox + 1] = { id, prefix, text }
 end
 function GetInstanceInfo() if M.inInstance then return "Les Mortemines", "party" end return "Royaumes de l'Est", "none" end
-function UnitExists(u) return u == "player" or (u == "target" and M.target ~= nil) end
+function UnitExists(u) return u == "player" or (u == "target" and M.target ~= nil) or groupMember(u) ~= nil end
 function UnitCanAttack(a, u) return u == "target" and M.target ~= nil and M.target.hostile == true end
 function UnitIsPlayer(u) return u == "player" end
 function IsFalling() return M.falling end
@@ -438,7 +452,26 @@ function IsInRaid() return false end
 function GetNumGroupMembers() return M.group and (#M.group + 1) or 0 end
 C_FriendList = {}
 function C_FriendList.GetNumFriends() return #M.friends end
-function C_FriendList.GetFriendInfoByIndex(i) local f = M.friends[i]; return f and { name = f.name, connected = f.connected } end
+function C_FriendList.GetFriendInfoByIndex(i)
+  local f = M.friends[i]
+  return f and { name = f.name, connected = f.connected, level = f.connected and f.level or 0, area = f.connected and f.area or nil }
+end
+M.polls = { friends = 0, guild = 0 }
+function C_FriendList.ShowFriends() M.polls.friends = M.polls.friends + 1 end
+-- liste de la guilde : M.guildRoster = { { name = "Nom-Royaume", level, zone, online }, … }
+M.guildRoster = {}
+function GetNumGuildMembers()
+  if not P.guild then return 0, 0, 0 end
+  local on = 0
+  for _, g in ipairs(M.guildRoster) do if g.online then on = on + 1 end end
+  return #M.guildRoster, on, on
+end
+function GetGuildRosterInfo(i)
+  local g = M.guildRoster[i]
+  if not g then return nil end
+  return g.name, "Membre", 2, g.level, "Mage", g.zone, "", "", g.online == true, 0, "MAGE"
+end
+C_GuildInfo = { GuildRoster = function() M.polls.guild = M.polls.guild + 1 end }
 function GetNormalizedRealmName() return P.realm end
 function GetRealmName() return P.realm end
 function GetMoney() return P.money end

@@ -891,15 +891,145 @@ def main():
     pump(nn, 7)
     ntext = n1.ns.Autotest.last.text
     for line in ntext.split("\n"):
-        if "Liaison" in line or "soi-même" in line or "double" in line or "Amis sondés" in line:
+        if "Liaison" in line or "soi-même" in line or "double" in line or "Amis sondés" in line or "Présence" in line:
             print("       |", line)
     check("Chuchotement à soi-même : reçu via WHISPER" in ntext, "le message à soi-même arrive (nom complet « Nokie Jenkins »)")
     check("Liaison avec Philipon Dugard : aller-retour" in ntext and "Liaison Battle.net avec Philipon Dugard : aller-retour" in ntext,
           "liaison par chuchotement et par Battle.net avec Philipon")
     check("Noms en double : aucun (" in ntext, "autotest : noms réparés signalés, plus aucun doublon")
+    check("[OK] Présence lue dans le jeu : amis 0 · Battle.net 1 · guilde 0 · groupe 0 · Philipon" in ntext,
+          "autotest : présence de Philipon lue par Battle.net")
     n1.lua.globals().SlashCmdList.KEK("ajouter Philipon")
     check(any("nom de famille" in p for p in n1.M.printed.values()), "ajout sans nom de famille : KEK demande « Prénom Nom »")
+    n1.M.advance(25)                              # Philipon se tait depuis 25 s
+    n1.run('Mock.bnFriends[1].characterLevel = 17; Mock.bnFriends[1].areaName = "Marche de l’Ouest"; Mock.fire("BN_FRIEND_INFO_CHANGED")')
+    n1.M.advance(1.5)
+    check(n1.ns.db.members["Philipon Dugard"].level == 17, "Battle.net : niveau de Philipon lu dans le jeu (17)")
+    n1.run('Mock.bnFriends[1].characterName = ""; Mock.fire("BN_FRIEND_INFO_CHANGED")')
+    n1.M.advance(1.5)
+    check(n1.ns.Store.IsOnline(n1.ns.Store, "Philipon Dugard"), "Battle.net : écran de chargement (personnage inconnu) -> pas de fausse déconnexion")
+    n1.run('Mock.bnFriends[1].characterName = "Philipa Dugard"; Mock.fire("BN_FRIEND_INFO_CHANGED")')
+    n1.M.advance(1.5)
+    check(not n1.ns.Store.IsOnline(n1.ns.Store, "Philipon Dugard"), "Battle.net : Philipon passe sur un autre personnage -> hors ligne tout de suite")
+    n1.run('Mock.bnFriends[1].characterName = "Philipon Dugard"; Mock.fire("BN_FRIEND_INFO_CHANGED")')
+    n1.M.advance(1.5)
+    check(n1.ns.Store.IsOnline(n1.ns.Store, "Philipon Dugard"), "Battle.net : il revient sur Philipon -> de nouveau en ligne")
     clients += nn
+
+    print("Présence lue dans le jeu : donjon, déconnexion, niveau et zone")
+    p1 = Client("Gael", "MAGE", "Player-1-0010", 20)
+    p2 = Client("Hugo", "WARRIOR", "Player-1-0011", 22)
+    pp = [p1, p2]
+    p1.M.friends = p1.lua.table(p1.lua.table_from({"name": "Hugo", "connected": True, "level": 22, "area": "Forêt d'Elwynn"}))
+    p2.M.friends = p2.lua.table(p2.lua.table_from({"name": "Gael", "connected": True, "level": 20, "area": "Forêt d'Elwynn"}))
+    for c in pp:
+        c.lua.globals().SlashCmdList.KEK("code dragons")
+    pump(pp, 15)
+    PR, ST, hugo = p1.ns.Presence, p1.ns.Store, p2.full
+    check(ST.IsOnline(ST, hugo), "Hugo en ligne chez Gael")
+    p1.M.advance(31)
+    check(PR.Connected(PR, hugo), "le jeu voit Hugo connecté (liste d'amis, relue toutes les 30 s)")
+    check(p1.M.polls.friends > 0, "KEK redemande la liste d'amis au jeu")
+    # Hugo entre dans un donjon : le jeu coupe ses messages (son client n'avance plus)
+    p1.M.advance(400)
+    check(ST.IsOnline(ST, hugo), "Hugo en donjon : toujours en ligne après 7 min sans messages")
+    check(PR.Silent(PR, hugo), "statut « En donjon » : connecté, mais KEK ne l'entend plus")
+    p1.ns.Window.Open(p1.ns.Window, "roster")
+    p1.M.advance(0.5)
+    p1.run('Mock.friends[1].level = 23; Mock.friends[1].area = "Les Mortemines"; Mock.fire("FRIENDLIST_UPDATE")')
+    p1.M.advance(1.5)
+    m = p1.ns.db.members[hugo]
+    check(m.level == 23 and m.zone == "Les Mortemines" and m.xp == 0,
+          "niveau et zone lus dans la liste d'amis pendant le silence (%s, %s)" % (m.level, m.zone))
+    p1.run('Mock.friends[1].level = 21; Mock.fire("FRIENDLIST_UPDATE")')
+    p1.M.advance(1.5)
+    check(p1.ns.db.members[hugo].level == 23, "une liste du jeu en retard ne fait pas redescendre le niveau")
+    p1.run('Mock.friends[1].connected = false; Mock.fire("FRIENDLIST_UPDATE")')
+    p1.M.advance(1.5)
+    check(not ST.IsOnline(ST, hugo), "déconnexion vue par le jeu : hors ligne tout de suite")
+    p1.run('Mock.friends[1].connected = true; Mock.fire("FRIENDLIST_UPDATE")')
+    p1.M.advance(1.5)
+    check(ST.IsOnline(ST, hugo), "reconnexion vue par le jeu : de nouveau en ligne")
+    # Hugo sort du donjon et parle de nouveau ; une liste du jeu pas encore à jour le dit déconnecté
+    p2.ns.Sync.SendState(p2.ns.Sync)
+    pump(pp, 2)
+    check(not PR.Silent(PR, hugo), "sortie de donjon : KEK l'entend de nouveau")
+    p1.run('Mock.friends[1].connected = false; Mock.fire("FRIENDLIST_UPDATE")')
+    p1.M.advance(1.5)
+    check(ST.IsOnline(ST, hugo), "message de KEK tout récent : une liste du jeu en retard ne le déconnecte pas")
+    p1.M.advance(35)
+    check(not ST.IsOnline(ST, hugo), "puis la liste du jeu fait foi")
+    # groupe : le jeu indique qui a perdu la connexion
+    p1.run('Mock.friends = {}; Mock.group = { "Hugo" }; Mock.groupState = { Hugo = { connected = true, level = 24 } }')
+    p1.run('Mock.fire("UNIT_CONNECTION")')
+    p1.M.advance(1.5)
+    check(ST.IsOnline(ST, hugo) and p1.ns.db.members[hugo].level == 24, "groupe : connecté, niveau 24 lu dans le jeu")
+    p1.run('Mock.groupState.Hugo.connected = false; Mock.fire("UNIT_CONNECTION")')
+    p1.M.advance(1.5)
+    check(not ST.IsOnline(ST, hugo), "groupe : déconnexion vue tout de suite")
+    p1.run('Mock.group = nil; Mock.groupState = {}')
+    # guilde
+    p1.run("""
+      Mock.player.guild = "Les Dragons"
+      Mock.guildRoster = { { name = "Hugo-Forever", level = 25, zone = "Strangleronce", online = true } }
+      Mock.fire("GUILD_ROSTER_UPDATE")
+    """)
+    p1.M.advance(1.5)
+    check(ST.IsOnline(ST, hugo) and p1.ns.db.members[hugo].level == 25, "guilde : connecté, niveau 25 lu dans la liste de guilde")
+    check(p1.ns.db.members[hugo].zone != "Strangleronce", "KEK l'a entendu il y a moins de 150 s : sa zone (plus précise) est gardée")
+    p1.M.advance(160)
+    check(p1.M.polls.guild > 0, "KEK redemande la liste de guilde au jeu")
+    check(p1.ns.db.members[hugo].zone == "Strangleronce", "silence de KEK : zone lue dans la liste de guilde")
+    p1.run('Mock.guildRoster[1].online = false; Mock.fire("GUILD_ROSTER_UPDATE")')
+    p1.M.advance(1.5)
+    check(not ST.IsOnline(ST, hugo), "guilde : déconnexion vue tout de suite")
+    p1.run('Mock.player.guild = nil; Mock.guildRoster = {}')
+    clients += pp
+
+    print("La bande : barres d'XP stables au rafraîchissement (vol, changement de zone)")
+    p1.run("""
+      local ns = Mock.ns
+      ns.db.members[ns.me].xp = 0.15
+      for name, m in pairs(ns.db.members) do if name ~= ns.me then m.level, m.xp = 25, 0.85 end end
+      ns.Window:Open("roster"); ns.Window:Refresh()
+      Mock.advance(1)
+      local list = ns.Window.byId.roster.list
+      local function snapshot()
+        local rows = {}
+        for i, row in pairs(list.active) do rows[i] = row end
+        return rows
+      end
+      local function settled()
+        for _, row in pairs(list.active) do
+          local want = (row.m.level or 0) >= ns.MAX_LEVEL and 1 or (row.m.xp or 0)
+          if math.abs((row.xp.shown or 0) - want) > 0.001 then return false end
+        end
+        return true
+      end
+      local before = snapshot()
+      Mock.rowCount = 0
+      for _ in pairs(before) do Mock.rowCount = Mock.rowCount + 1 end
+      Mock.sameRows, Mock.settled = true, true
+      for _ = 1, 5 do                                 -- en vol : la zone change toutes les quelques secondes
+        ns:Fire("DATA", "members")
+        Mock.advance(0.2)
+        for i, row in pairs(snapshot()) do if before[i] ~= row then Mock.sameRows = false end end
+        if not settled() then Mock.settled = false end
+      end
+      -- Hugo gagne un niveau : sa barre repart de zéro jusqu'à sa nouvelle valeur
+      for name, m in pairs(ns.db.members) do if name ~= ns.me then m.level, m.xp = 26, 0.1 end end
+      ns:Fire("DATA", "members")
+      Mock.advance(0.2)
+      Mock.levelUpStart = nil
+      for _, row in pairs(list.active) do if row.m.name ~= ns.me then Mock.levelUpStart = row.xp.shown end end
+      Mock.advance(1)
+      Mock.levelUpSettled = settled()
+    """)
+    check(p1.M.rowCount >= 2, "deux membres affichés (%d)" % p1.M.rowCount)
+    check(p1.M.sameRows, "rafraîchissement : chaque membre garde sa ligne")
+    check(p1.M.settled, "rafraîchissement : aucune barre d'XP ne glisse d'un membre à l'autre")
+    check(p1.M.levelUpStart is not None and p1.M.levelUpStart < 0.1 and p1.M.levelUpSettled,
+          "niveau gagné : la barre repart de zéro puis rejoint 10 %% (%.3f au départ)" % (p1.M.levelUpStart or -1))
 
     print("Menu Options : repli si l'API du jeu diffère")
     z = Client("Zoe", "MAGE", "Player-1-0007", 5, pre="function Settings.RegisterProxySetting() error('signature différente') end")

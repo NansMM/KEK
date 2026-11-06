@@ -756,6 +756,7 @@ function Comm:OnMessage(prefix, text, dist, sender)
       if k:sub(1, #sender + 1) == sender .. ":" then self.seen[k] = nil end
     end
   else
+    if ns.Presence then ns.Presence:Heard(sender) end
     ns.Store:SetOnline(sender, true)
   end
   ns:Fire("MSG_" .. msg.k, sender, msg.d, msg, dist)

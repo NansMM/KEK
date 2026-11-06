@@ -765,8 +765,11 @@ function UI.List(parent, opts)
     pool[#pool + 1] = row
   end
   function f:ReleaseAll()
+    -- de la dernière ligne à la première : la pile rend ensuite à chaque place la même ligne qu'avant,
+    -- sinon un simple rafraîchissement échange les lignes et leurs barres glissent d'un membre à l'autre
     local keys = {}
     for idx in pairs(self.active) do keys[#keys + 1] = idx end
+    table.sort(keys, function(a, b) return a > b end)
     for _, idx in ipairs(keys) do self:Release(idx) end
   end
 

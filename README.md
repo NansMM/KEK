@@ -65,7 +65,7 @@ Toute la bande doit avoir une version récente : les versions trop anciennes ne 
 Forever applique les règles d'addons de Midnight. KEK les respecte :
 
 - **Pas de journal de combat** : un addon qui l'écoute est bloqué par le jeu (c'était le message « KEK a été bloqué… » des versions 1.0 et 1.1). KEK n'affiche donc ni dégâts ni soins ; les morts sont décrites avec ce qui reste permis (créature combattue, chute, noyade), et les ennemis sont comptés grâce aux messages d'expérience.
-- **Silence en donjon** : le jeu interdit aux addons de communiquer en donjon et en champ de bataille. Tes exploits attendent et partent à la sortie.
+- **Silence en donjon** : le jeu interdit aux addons de communiquer en donjon et en champ de bataille. Tes exploits attendent et partent à la sortie. Pendant ce temps, KEK lit ta liste d'amis, tes amis Battle.net, ta guilde et ton groupe : les amis en donjon restent affichés « En donjon », avec leur niveau et leur zone à jour, et un ami qui se déconnecte passe hors ligne tout de suite.
 - **Butin** : KEK le repère dans tes sacs, ce qui marche aussi en donjon (où les messages du chat sont cachés aux addons).
 - **Bouton de la minicarte** : KEK utilise la bibliothèque standard LibDBIcon, comme le demande Forever : le bouton est reconnu par le jeu et peut être rangé avec ceux des autres addons. Il affiche le nombre d'amis en ligne, se déplace en le faisant glisser et se masque dans les réglages. KEK apparaît aussi dans le menu des addons du jeu et dans les barres d'infos (Titan Panel, etc.).
 - **Si le jeu bloque encore quelque chose** : KEK écrit dans le chat le nom exact de l'action bloquée. Fais une capture de cette ligne (ou tape `/kek diag`) : c'est ce qu'il faut pour corriger.

@@ -94,6 +94,25 @@ add(L["Amis sondés"], function()
   return any and "ok" or (bad and "warn" or "info"), table.concat(list, ", ")
 end)
 
+add(L["Présence lue dans le jeu"], function()
+  local P = ns.Presence
+  local seen = P:Collect()
+  local list = {}
+  for name, g in pairs(seen) do
+    local bits = { g.on and L["connecté"] or L["déconnecté"] }
+    if g.level then bits[#bits + 1] = string.format(L["niv. %d"], g.level) end
+    if g.zone then bits[#bits + 1] = g.zone end
+    list[#list + 1] = string.format("%s (%s, %s)", U.Short(name), g.src, table.concat(bits, " · "))
+  end
+  table.sort(list)
+  local s = P.stats
+  local sources = string.format(L["amis %d · Battle.net %d · guilde %d · groupe %d"], s.friend, s.bnet, s.guild, s.group)
+  if #list == 0 then
+    return "info", sources .. " · " .. L["aucun membre de la bande dans tes amis, ta guilde ou ton groupe : KEK se fie à ses seuls messages"]
+  end
+  return "ok", sources .. " · " .. table.concat(list, ", ")
+end)
+
 add(L["Messages de KEK"], function()
   local st = ns.Comm.stats
   local sent = {}

@@ -155,7 +155,8 @@ function Store:OnLogin()
     local now = ns.Now()
     for name in pairs(self.online) do
       local m = ns.db.members[name]
-      if not m or now - (m.seen or 0) > OFFLINE_AFTER then
+      -- sans nouvelles de KEK… sauf si le jeu le voit encore connecté (donjon : messages coupés)
+      if not m or (now - (m.seen or 0) > OFFLINE_AFTER and not (ns.Presence and ns.Presence:Connected(name))) then
         self:SetOnline(name, false)
       end
     end

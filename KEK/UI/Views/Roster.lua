@@ -173,9 +173,14 @@ local function updateRow(row, item)
   else
     row.level:Set(string.format(L["niv. %d"], level), { r, g, b, 1 })
     row.xp:SetColor({ r, g, b, 0.9 })
-    row.xp:SetValue(m.xp or 0, true)
+    -- la barre ne s'anime que pour une vraie progression de ce membre : une ligne qui affichait
+    -- quelqu'un d'autre (tri, liste filtrée) prend directement la bonne valeur
+    local same = row.xpFor == m.name
+    if same and level > (row.xpLevel or level) then row.xp:SetValue(0) end   -- niveau gagné : repart de zéro
+    row.xp:SetValue(m.xp or 0, same)
     row.xpText:SetText(U.Percent(m.xp or 0))
   end
+  row.xpFor, row.xpLevel = m.name, level
 
   -- spécialisation
   local sx = math.floor(w * COLS.spec)
@@ -218,7 +223,8 @@ local function updateRow(row, item)
 
   -- statut
   if online then
-    row.status:SetText(m.dead and L["Fantôme"] or (m.instance and L["En donjon"] or L["En ligne"]))
+    local away = m.instance or (ns.Presence and ns.Presence:Silent(m.name))   -- en donjon : KEK ne l'entend plus
+    row.status:SetText(m.dead and L["Fantôme"] or (away and L["En donjon"] or L["En ligne"]))
     UI.SetTextColor(row.status, m.dead and C.bad or C.good)
   else
     row.status:SetText(U.Ago(m.seen))

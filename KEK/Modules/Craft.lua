@@ -494,6 +494,10 @@ function Craft:Resolve(input)
     local name, link = U.GetItemInfo(input)
     return input, link, name
   end
+  if type(input) == "table" and input.id then             -- { id, name } : objet pas encore dans le cache du jeu
+    local name, link = U.GetItemInfo(input.id)
+    return input.id, link, name or input.name
+  end
   if type(input) ~= "string" then return nil end
   local id = U.ItemID(input)
   if id then
@@ -606,7 +610,7 @@ function Craft:AddReagentNeeds(recipe, crafts)
         added[#added + 1] = { i = existing.i, s = existing.s or probe.s, q = existing.q }
       else
         local link = r.i and select(2, U.GetItemInfo(r.i)) or nil
-        local ok, entry = self:AddNeed(link or r.i or probe.s, missing, note, true)
+        local ok, entry = self:AddNeed(link or (r.i and { id = r.i, name = probe.s }) or probe.s, missing, note, true)
         if ok and entry then added[#added + 1] = { i = entry.i, s = entry.s or probe.s, q = entry.q } end
       end
     else

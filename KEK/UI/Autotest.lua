@@ -149,8 +149,10 @@ add(L["Fonctions du chat"], function()
   local filter = (ChatFrame_AddMessageEventFilter and "ChatFrame_AddMessageEventFilter") or (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter and "ChatFrameUtil") or nil
   local open = ChatFrame_OpenChat or (ChatFrameUtil and ChatFrameUtil.OpenChat)
   local link = ChatEdit_InsertLink or (ChatFrameUtil and ChatFrameUtil.InsertLink)
-  local status = (filter and open and link) and "ok" or "warn"
-  return status, string.format(L["filtre : %s · ouvrir : %s · insérer un lien : %s"], filter or L["absent"], yes(open), yes(link))
+  local hooks = U.HookInsertLink()
+  local followed = hooks.ChatFrameUtil and "ChatFrameUtil.InsertLink" or (hooks.ChatEdit and "ChatEdit_InsertLink") or L["non"]
+  local status = (filter and open and link and (hooks.ChatFrameUtil or hooks.ChatEdit)) and "ok" or "warn"
+  return status, string.format(L["filtre : %s · ouvrir : %s · insérer un lien : %s · Maj+clic suivi : %s"], filter or L["absent"], yes(open), yes(link), followed)
 end)
 
 add(L["Motif « joueur introuvable »"], function()

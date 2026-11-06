@@ -1,5 +1,12 @@
 # Historique de KEK
 
+## 1.7.2
+
+- Besoins : le Maj+clic sur un objet marche partout (lien dans le chat, fenêtre de métier, butin, sacs), même pour un objet que tu n'as jamais eu. Plus besoin de cliquer d'abord dans le champ : il suffit que la liste des besoins soit affichée.
+- Après un Maj+clic, le curseur passe à la quantité : tape le nombre puis Entrée pour ajouter le besoin.
+- Atelier > Recettes : Maj+clic et « Ajouter à mes besoins » marchent aussi pour un objet que ton jeu ne connaît pas encore.
+- Autotest : la ligne « Fonctions du chat » indique si le Maj+clic est bien suivi.
+
 ## 1.7.1 — 6 novembre 2026
 
 - Les fenêtres de métier de WoW Forever sont bien lues (le jeu renvoie un rang de 0 pour le « sous-métier »).

@@ -271,8 +271,15 @@ function EditM:SetText(t)
 end
 function EditM:GetText() return self._text or "" end
 function EditM:Insert(t) self._text = (self._text or "") .. t; self:_fire("OnTextChanged", true) end
-function EditM:SetFocus() self._focus = true; self:_fire("OnEditFocusGained") end
-function EditM:ClearFocus() if self._focus then self._focus = false; self:_fire("OnEditFocusLost") end end
+function EditM:SetFocus()
+  if M.focus and M.focus ~= self then M.focus:ClearFocus() end
+  M.focus = self
+  if not self._focus then self._focus = true; self:_fire("OnEditFocusGained") end
+end
+function EditM:ClearFocus()
+  if M.focus == self then M.focus = nil end
+  if self._focus then self._focus = false; self:_fire("OnEditFocusLost") end
+end
 function EditM:HasFocus() return self._focus == true end
 function EditM:Type(t) self._text = t; self:_fire("OnTextChanged", true) end
 
@@ -511,15 +518,21 @@ function C_Container.GetContainerItemInfo(bag, slot)
 end
 NUM_BAG_SLOTS, NUM_BANKBAGSLOTS, BANK_CONTAINER = 4, 6, -1
 
+M.uncached = {}
 local function getItemInfo(x)
+  if x == nil then error("bad argument #1 to 'GetItemInfo'", 2) end
   local id = type(x) == "number" and x or tonumber(tostring(x):match("item:(%d+)"))
   local it = id and M.items[id]
-  if not it then return nil end
+  if not it or M.uncached[id] then return nil end
   return it.name, link(id), it.q, 20, 15, "Divers", "Divers", 20, "", it.icon
 end
 function GetItemIcon(id) local it = M.items[id]; return it and it.icon end
 -- comme dans l'interface 12.x : plus de GetItemInfo global, seulement C_Item.GetItemInfo
 C_Item = { GetItemIconByID = function(id) local it = M.items[id]; return it and it.icon end, GetItemInfo = getItemInfo }
+function C_Item.RequestLoadItemDataByID(id)
+  num(id, "id")
+  if M.uncached[id] then C_Timer.After(0.3, function() M.uncached[id] = nil; M.fire("GET_ITEM_INFO_RECEIVED", id, true) end) end
+end
 
 function GetTradeSkillLine() if M.trade then return M.trade.name, M.trade.rank, M.trade.max end return "UNKNOWN", 0, 0 end
 function GetNumTradeSkills() return M.trade and #M.trade.list or 0 end
@@ -537,8 +550,31 @@ function GetTradeSkillReagentItemLink(i, n) return link(M.trade.list[i].reagents
 function GetCursorInfo() if M.cursor then return "item", M.cursor, link(M.cursor) end return nil end
 function ClearCursor() M.cursor = nil end
 function GetCursorPosition() return 500, 400 end
-function IsModifiedClick() return false end
-function ChatEdit_InsertLink(l) return false end
+M.modified = {}
+function IsModifiedClick(kind) return M.modified[kind or "CHATLINK"] == true end
+function GetCurrentKeyBoardFocus() return M.focus end
+M.inserted = {}
+ChatFrameUtil = {}
+function ChatFrameUtil.GetActiveWindow() return M.activeChat end
+function ChatFrameUtil.InsertLink(text)
+  if not text then return false end
+  local active = ChatFrameUtil.GetActiveWindow()
+  if active then active:Insert(text); active:SetFocus(); M.inserted[#M.inserted + 1] = text; return true end
+  return false
+end
+ChatEdit_InsertLink = ChatFrameUtil.InsertLink
+function HandleModifiedItemClick(l)
+  if not l then return false end
+  if IsModifiedClick("CHATLINK") and ChatFrameUtil.InsertLink(l) then return true end
+  return false
+end
+-- Maj+clic sur un objet : sacs, lien du chat, fenêtre de métier… passent tous par HandleModifiedItemClick
+function M.shiftClick(id)
+  M.modified.CHATLINK = true
+  local r = HandleModifiedItemClick(link(id))
+  M.modified.CHATLINK = nil
+  return r
+end
 function ChatFrame_OpenChat(text) M.whispers[#M.whispers + 1] = text end
 function InviteUnit(n) end
 function PlaySound(id, ch) M.sounds[#M.sounds + 1] = id; return true end
@@ -549,9 +585,10 @@ function ReloadUI() M.reloaded = true end
 YES, CANCEL = "Oui", "Annuler"
 MELEE = "Mêlée"
 
-function hooksecurefunc(a, b)
+function hooksecurefunc(a, b, c)
   local tbl, name, fn = _G, a, b
-  if type(a) == "table" then tbl, name, fn = a, b, select(3, a, b) end
+  if type(a) == "table" then tbl, name, fn = a, b, c end
+  if type(tbl[name]) ~= "function" or type(fn) ~= "function" then error("hooksecurefunc : fonction absente : " .. tostring(name), 2) end
   local orig = tbl[name]
   tbl[name] = function(...) local r = { orig(...) }; fn(...); return unpack(r) end
 end

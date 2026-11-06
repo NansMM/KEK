@@ -73,7 +73,7 @@ Forever applique les règles d'addons de Midnight. KEK les respecte :
 
 ## Bon à savoir
 
-- **Besoins** : dans Atelier > Besoins, tape simplement le nom de l'objet (des suggestions apparaissent), même si tu ne l'as jamais eu. Tu peux aussi le glisser depuis tes sacs ou faire Maj+clic dessus (sacs, chat, fenêtre de métier). Tes amis sont prévenus, et la notification leur dit s'ils en ont. Les boutons − et + à côté de la quantité l'ajustent (Maj : par 10).
+- **Besoins** : dans Atelier > Besoins, tape simplement le nom de l'objet (des suggestions apparaissent), même si tu ne l'as jamais eu. Tu peux aussi le glisser depuis tes sacs, ou faire Maj+clic sur n'importe quel objet pendant que la liste des besoins est affichée : sacs, lien dans le chat, fenêtre de métier, butin. Le curseur passe alors à la quantité : tape le nombre puis Entrée. Tes amis sont prévenus, et la notification leur dit s'ils en ont. Les boutons − et + à côté de la quantité l'ajustent (Maj : par 10).
 - **Composants d'une recette** : ouvre une fois ta fenêtre de métier, KEK mémorise les composants de tes recettes. Ensuite, clic droit sur une recette dans Atelier > Recettes, « Demander les composants qui me manquent », ou tape le nom de la recette dans Besoins et choisis « Composants : … » (la quantité = nombre de fabrications). KEK ne demande que ce qui manque, en comptant tes sacs et tes banques, et la bande reçoit une seule notification pour toute la liste.
 - **Champs de bataille** : les morts en champ de bataille et en arène ne comptent pas (ni Hall of Shame, ni soirée).
 - **Recettes** : ouvre une fois la fenêtre de chaque métier. KEK mémorise tes recettes et les partage.

@@ -115,8 +115,7 @@ local function createRecipeRow(list, kind)
       return
     end
     if button == "LeftButton" and item.id and IsModifiedClick and IsModifiedClick("CHATLINK") then
-      local _, link = U.GetItemInfo(item.id)
-      if link then U.InsertLink(link) end
+      U.WithItemLink(item.id, function(link) if link then U.InsertLink(link) end end)
       return
     end
     if button == "RightButton" and item.crafters then
@@ -132,7 +131,7 @@ local function createRecipeRow(list, kind)
       if item.id then
         menu[#menu + 1] = { label = L["Ajouter à mes besoins"], glyph = "plus", onClick = function()
           local _, link = U.GetItemInfo(item.id)
-          ns.Craft:AddNeed(link or item.id, 1, "")
+          ns.Craft:AddNeed(link or { id = item.id, name = item.name }, 1, "")
         end }
       end
       if ns.Craft:ReagentsFor(item.name) then
@@ -339,7 +338,7 @@ function View:BuildComposer(parent)
       pcall(tt.SetHyperlink, tt, self.draft)
     else
       tt:AddLine(L["Glisse un objet ici"], 1, 1, 1)
-      tt:AddLine(L["ou clique dans le champ puis Maj+clic sur un objet de tes sacs"], 0.7, 0.7, 0.75, true)
+      tt:AddLine(L["ou Maj+clic sur n'importe quel objet : sacs, lien dans le chat, fenêtre de métier, butin…"], 0.7, 0.7, 0.75, true)
     end
   end)
   self.slot = slot
@@ -366,10 +365,11 @@ function View:BuildComposer(parent)
   input:SetPoint("LEFT", slot, "RIGHT", 12, 0)
   self.itemInput = input
 
-  local qty = UI.Input(card, { placeholder = "1", max = 4, numeric = true, noClear = true, justify = "CENTER" })
+  local submit = function() UI.CloseMenu(); self:SubmitDraft() end
+  local qty = UI.Input(card, { placeholder = "1", max = 4, numeric = true, noClear = true, justify = "CENTER", onEnter = submit })
   qty:SetSize(52, 32)
   self.qtyInput = qty
-  local note = UI.Input(card, { placeholder = L["Note (facultatif)"], max = 60 })
+  local note = UI.Input(card, { placeholder = L["Note (facultatif)"], max = 60, onEnter = submit })
   note:SetSize(170, 32)
   self.noteInput = note
   local add = UI.Button(card, { text = L["Ajouter"], icon = "plus", style = "primary", h = 32, onClick = function() self:SubmitDraft() end })
@@ -378,17 +378,29 @@ function View:BuildComposer(parent)
   qty:SetPoint("RIGHT", note, "LEFT", -8, 0)
   input:SetPoint("RIGHT", qty, "LEFT", -8, 0)
 
-  -- Maj+clic sur un objet pendant que le champ a le focus
-  local function onLink(link)
-    if input:HasFocus() and type(link) == "string" and link:find("|Hitem:", 1, true) then
-      input:SetText(link)
-    end
+  U.OnInsertLink(function(link) self:OnItemLink(link) end)
+end
+
+-- Maj+clic sur un objet, où qu'il soit (sacs, lien dans le chat, fenêtre de métier, butin…), pendant que
+-- la liste des besoins est affichée.
+function View:OnItemLink(link)
+  if not link:find("|Hitem:", 1, true) or not self.composer or not self.composer:IsVisible() then return end
+  local ours = { [self.itemInput.eb] = true, [self.qtyInput.eb] = true, [self.noteInput.eb] = true }
+  local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+  if focus and not ours[focus] then return end            -- le lien est parti dans un autre champ (chat, macro…)
+  if not focus then
+    -- Personne n'a le focus : le lien est pour nous, sauf si une fenêtre du jeu l'a déjà pris.
+    local chat = (ChatFrameUtil and ChatFrameUtil.GetActiveWindow and ChatFrameUtil.GetActiveWindow())
+      or (ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow())
+    if chat or (AuctionHouseFrame and AuctionHouseFrame:IsVisible()) then return end
   end
-  if type(ChatEdit_InsertLink) == "function" then
-    hooksecurefunc("ChatEdit_InsertLink", onLink)
-  elseif ChatFrameUtil and type(ChatFrameUtil.InsertLink) == "function" then
-    hooksecurefunc(ChatFrameUtil, "InsertLink", onLink)
-  end
+  self.draftRecipe = nil
+  self.itemInput:SetText(link)
+  UI.CloseMenu()
+  UI.FadeColor(self.slot.edge, C.accent, 0.1)
+  C_Timer.After(0.5, function() UI.FadeColor(self.slot.edge, UI.Alpha(C.accent, 0.5), 0.3) end)
+  self.qtyInput.eb:SetFocus()
+  self.qtyInput.eb:HighlightText()
 end
 
 function View:SetDraft(link)

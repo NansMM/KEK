@@ -336,6 +336,88 @@ def main():
     check(lua_len(a.ns.db.needs[a.full].l) == 0, "retirer un besoin tapé au clavier")
     pump(ab, 6)
 
+    print("Besoins : Maj+clic sur un objet qui n'est pas dans les sacs")
+    # Interface 12.x : le jeu appelle ChatFrameUtil.InsertLink ; ChatEdit_InsertLink n'en est qu'une copie.
+    hooks = a.ns.U.HookInsertLink()
+    check(hooks.ChatFrameUtil and hooks.ChatEdit, "Maj+clic suivi par ChatFrameUtil.InsertLink et ChatEdit_InsertLink")
+    a.run("""
+      local ns = Mock.ns
+      Mock.uncached[2684] = true                  -- Ragoût de coyote : jamais vu par le jeu de Nans
+      ns.Window:Open("craft"); ns.db.ui.craftTab = "needs"; ns.Window:Refresh()
+      local view = ns.Window.byId.craft
+      view.itemInput:SetText("")
+      view.itemInput.eb:SetFocus()
+      Mock.shiftClick(2684)                       -- lien dans le chat d'un objet jamais vu
+    """)
+    view = a.ns.Window.byId.craft
+    check("Ragoût de coyote" in view.itemInput.GetText(view.itemInput) and view.draft is not None,
+          "champ actif : Maj+clic sur un objet jamais vu le met dans le brouillon")
+    check(a.lua.eval("Mock.focus == Mock.ns.Window.byId.craft.qtyInput.eb"), "le curseur passe à la quantité")
+    a.run("""
+      local view = Mock.ns.Window.byId.craft
+      view.qtyInput.eb:Type("3")
+      view.qtyInput.eb:_fire("OnEnterPressed")
+    """)
+    mine = a.ns.db.needs[a.full].l[1]
+    check(mine.i == 2684 and mine.s == "Ragoût de coyote" and mine.q == 3,
+          "Entrée dans la quantité : besoin ajouté (%s ×%s, id %s)" % (mine.s, mine.q, mine.i))
+    a.run("""
+      local view = Mock.ns.Window.byId.craft
+      if Mock.focus then Mock.focus:ClearFocus() end
+      Mock.shiftClick(2673)                       -- aucun champ actif, onglet Besoins affiché
+    """)
+    check("Viande de coyote" in view.itemInput.GetText(view.itemInput),
+          "sans cliquer dans le champ : Maj+clic remplit le brouillon quand Besoins est affiché")
+    a.run("""
+      if Mock.focus then Mock.focus:ClearFocus() end
+      Mock.activeChat = CreateFrame("EditBox")
+      Mock.activeChat:SetFocus()
+      Mock.shiftClick(2320)                       -- chat ouvert : le lien va dans le chat
+      Mock.activeChat:ClearFocus(); Mock.activeChat = nil
+      local macro = CreateFrame("EditBox")
+      macro:SetFocus()
+      Mock.shiftClick(2320)                       -- autre champ actif (macro…) : pas pour KEK
+      macro:ClearFocus()
+    """)
+    check("Viande de coyote" in view.itemInput.GetText(view.itemInput) and a.M.inserted[1] is not None and "Fil grossier" in a.M.inserted[1],
+          "chat ou autre champ actif : le lien y va, le brouillon ne change pas")
+    a.run("""
+      local ns = Mock.ns
+      ns.Window:Close()
+      Mock.shiftClick(2320)                       -- fenêtre fermée
+      ns.Window:Open("craft")
+      Mock.ns.db.ui.craftTab = "recipes"; ns.Window:Refresh()
+      Mock.shiftClick(2320)                       -- onglet Recettes
+      Mock.ns.db.ui.craftTab = "needs"; ns.Window:Refresh()
+    """)
+    check("Viande de coyote" in view.itemInput.GetText(view.itemInput), "fenêtre fermée ou onglet Recettes : Maj+clic ignoré")
+    a.run("""
+      local view = Mock.ns.Window.byId.craft
+      view.itemInput:SetText("")
+      if Mock.focus then Mock.focus:ClearFocus() end
+      ChatEdit_InsertLink(Mock.link(2589))        -- un vieil addon (base de butin…) qui appelle l'ancienne fonction
+    """)
+    check("Étoffe de lin" in view.itemInput.GetText(view.itemInput), "lien envoyé par un vieil addon avec ChatEdit_InsertLink")
+    a.run("""
+      Mock.uncached[2575] = true
+      Mock.got = nil
+      Mock.ns.U.WithItemLink(2575, function(l) Mock.got = l or false end)
+    """)
+    check(a.M.got is None, "lien d'un objet hors cache : KEK attend que le jeu le charge")
+    a.M.advance(1)
+    check(a.M.got and "Chemise en lin blanche" in a.M.got, "puis le lien arrive (%s)" % a.M.got)
+    a.run("Mock.uncached[2575] = true")
+    rid, rlink, rname = a.ns.Craft.Resolve(a.ns.Craft, a.lua.table_from({"id": 2575, "name": "Chemise en lin blanche"}))
+    check(rid == 2575 and rname == "Chemise en lin blanche", "Ajouter à mes besoins depuis Recettes, objet hors cache : nom gardé")
+    a.run("""
+      local ns = Mock.ns
+      Mock.uncached[2575] = nil
+      Mock.ns.Window.byId.craft.itemInput:SetText("")
+      for _, n in ipairs({ unpack(ns.db.needs[ns.me].l) }) do ns.Craft:RemoveNeed(ns.Craft.NeedKey(n)) end
+    """)
+    check(lua_len(a.ns.db.needs[a.full].l) == 0, "besoins de test retirés")
+    pump(ab, 6)
+
     print("Composants d'une recette")
     a.run("""
       Mock.trade = { name = "Couture", rank = 75, max = 150, list = {

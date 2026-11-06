@@ -35,11 +35,50 @@ function U.OpenChat(text)
 end
 
 function U.InsertLink(link)
-  local fn = ChatEdit_InsertLink or (ChatFrameUtil and ChatFrameUtil.InsertLink)
+  local fn = (ChatFrameUtil and ChatFrameUtil.InsertLink) or ChatEdit_InsertLink
   if fn then
     local ok, res = pcall(fn, link)
     return ok and res
   end
+end
+
+-- Maj+clic sur un objet (sacs, chat, fenêtre de métier, hôtel des ventes…). Dans l'interface 12.x, le jeu
+-- appelle ChatFrameUtil.InsertLink ; ChatEdit_InsertLink n'en est qu'une copie gardée pour les vieux addons,
+-- que le jeu n'appelle plus. On suit les deux, sans traiter deux fois le même clic.
+local linkListeners, linkHooks = {}, {}
+local lastLink, lastLinkTime
+local function onInsertLink(link)
+  if type(link) ~= "string" then return end
+  local now = GetTime()
+  if link == lastLink and now == lastLinkTime then return end
+  lastLink, lastLinkTime = link, now
+  for _, fn in ipairs(linkListeners) do (securecallfunction or pcall)(fn, link) end
+end
+
+function U.HookInsertLink()
+  if not linkHooks.ChatFrameUtil and ChatFrameUtil and type(ChatFrameUtil.InsertLink) == "function" then
+    hooksecurefunc(ChatFrameUtil, "InsertLink", onInsertLink)
+    linkHooks.ChatFrameUtil = true
+  end
+  if not linkHooks.ChatEdit and type(ChatEdit_InsertLink) == "function" then
+    hooksecurefunc("ChatEdit_InsertLink", onInsertLink)
+    linkHooks.ChatEdit = true
+  end
+  return linkHooks
+end
+
+function U.OnInsertLink(fn)
+  linkListeners[#linkListeners + 1] = fn
+  U.HookInsertLink()
+end
+
+-- Lien d'un objet qui n'est peut-être pas encore dans le cache du jeu : on le demande, puis on rappelle fn(lien),
+-- ou fn(nil) si le jeu ne répond pas.
+function U.WithItemLink(id, fn, tries)
+  local _, link = U.GetItemInfo(id)
+  if link or (tries or 0) >= 15 then return fn(link) end
+  if not tries and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+  C_Timer.After(0.1, function() U.WithItemLink(id, fn, (tries or 0) + 1) end)
 end
 
 function U.AddMessageFilter(event, fn)
@@ -374,6 +413,7 @@ function U.ItemName(link)
     local name = link:match("|h%[(.-)%]|h")
     if name then return name end
   end
+  if link == nil then return nil end
   local name = GetItemInfo and GetItemInfo(link)
   return name
 end

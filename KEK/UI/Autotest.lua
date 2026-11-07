@@ -314,8 +314,11 @@ add(L["Recettes"], function()
     local status = (scan and scan.why) and "warn" or "info"
     return status, string.format(L["%s · aucune recette mémorisée · %s"], api, last)
   end
-  return "ok", string.format(L["%s · %d recette(s) (%s) · composants connus pour %d · %s"], api, n, table.concat(profs, ", "),
-    U.Count(ns.db.reagents or {}), last)
+  local own, received = ns.Craft:ReagentCounts()
+  local known = tostring(own)
+  if received > 0 then known = known .. string.format(L[", et %d reçue(s) de la bande"], received) end
+  return "ok", string.format(L["%s · %d recette(s) (%s) · composants connus pour %s · %s"], api, n, table.concat(profs, ", "),
+    known, last)
 end)
 
 add(L["Morts (sans journal de combat)"], function()

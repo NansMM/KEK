@@ -445,6 +445,83 @@ def main():
     check(len(combined) == 1 and "a besoin des composants de Chemise en lin brune ×10" in combined[0].spec.title
           and "Fil grossier ×10" in (combined[0].spec.body or "") and "tu as : " in (combined[0].spec.body or ""),
           "une seule notification chez Kevin pour toute la liste, avec ce qu'il a déjà")
+    # les composants voyagent avec les recettes : Kevin voit ceux de la recette de Nans
+    pump(ab, 20)
+    reag_b = b.ns.Craft.ReagentsFor(b.ns.Craft, "Chemise en lin brune")
+    check(reag_b is not None and lua_len(reag_b) == 2 and reag_b[1].i == 2589 and reag_b[1].q == 2 and reag_b[2].i == 2320,
+          "Kevin reçoit les composants de la recette de Nans (2 × Étoffe de lin, 1 × Fil grossier)")
+    check(b.ns.db.reagents["Chemise en lin brune"].f == a.full and a.ns.db.reagents["Chemise en lin brune"].f is None,
+          "composants reçus marqués comme venant de Nans ; chez Nans, ceux de sa fenêtre de métier")
+    tip = b.lua.eval("""(function()
+      local ns = Mock.ns
+      ns.Window:Open("craft"); ns.db.ui.craftTab = "recipes"; ns.Window:Refresh()
+      local view = ns.Window.byId.craft
+      view.search.eb:Type("chemise en lin brune")
+      Mock.advance(0.5)
+      local lines = {}
+      for _, row in pairs(view.recipes.active) do
+        if row.item and row.item.name == "Chemise en lin brune" then
+          row:_fire("OnEnter")
+          for _, l in ipairs(GameTooltip._lines) do lines[#lines + 1] = l end
+          row:_fire("OnLeave")
+        end
+      end
+      view.search.eb:Type("")
+      Mock.advance(0.3)
+      return table.concat(lines, " || ")
+    end)()""")
+    check("Composants" in tip and "Étoffe de lin ×2" in tip and "Fil grossier ×1" in tip and "tu en as" in tip,
+          "infobulle de la recette de Nans chez Kevin : composants et ce qu'il en a")
+    tip_unknown = b.lua.eval("""(function()
+      local ns = Mock.ns
+      local view = ns.Window.byId.craft
+      view.search.eb:Type("chemise en lin numéro 12")
+      Mock.advance(0.5)
+      local lines = {}
+      for _, row in pairs(view.recipes.active) do
+        if row.item and row.item.crafters then
+          row:_fire("OnEnter")
+          for _, l in ipairs(GameTooltip._lines) do lines[#lines + 1] = l end
+          row:_fire("OnLeave")
+        end
+      end
+      view.search.eb:Type("")
+      Mock.advance(0.3)
+      return table.concat(lines, " || ")
+    end)()""")
+    check("pas encore connus" in tip_unknown, "recette sans composants connus : l'infobulle explique pourquoi")
+    kbefore = {n.i for n in b.ns.db.needs[b.full].l.values()}
+    b.ns.Window.byId.craft.RequestReagents(b.ns.Window.byId.craft, "Chemise en lin brune", 1)
+    kneeds = {n.i for n in b.ns.db.needs[b.full].l.values()}
+    check(2320 in kneeds, "Kevin peut demander les composants qui lui manquent pour la recette de Nans")
+    for k in kneeds - kbefore:
+        b.ns.Craft.RemoveNeed(b.ns.Craft, k)
+    a.run("""
+      local ns = Mock.ns
+      ns.db.reagents["Ragoût de test"] = { p = "Cuisine", l = { { i = 1, q = 1 } } }
+      ns.Craft:MergeReagents("Kevin-Forever", { ["Ragoût de test"] = { p = "Cuisine", l = { { i = 2, q = 3 } } },
+                                                ["Recette reçue"] = { p = "Cuisine", l = { { i = 3, q = 1 } } } })
+    """)
+    check(a.ns.db.reagents["Ragoût de test"].l[1].i == 1 and a.ns.db.reagents["Recette reçue"].f == "Kevin-Forever",
+          "ce que tu as lu dans ta fenêtre de métier n'est jamais remplacé par ce qui vient de la bande")
+    a.run('Mock.ns.db.reagents["Ragoût de test"] = nil; Mock.ns.db.reagents["Recette reçue"] = nil')
+    # format compact : aller-retour avec un composant sans identifiant
+    rt = a.lua.eval("""(function()
+      local C = Mock.ns.Craft
+      local saved = Mock.ns.db.reagents
+      Mock.ns.db.reagents = { ["Potion"] = { p = "Alchimie", l = { { i = 765, q = 1 }, { s = "Fiole vide", q = 1 } } } }
+      local own = Mock.ns.db.recipes[Mock.ns.me]
+      local savedP = own.p
+      own.p = { Alchimie = { r = 10, m = 75, l = { ["Potion"] = 118, ["Autre"] = 0 } } }
+      local p, reag = C:DecodeRecipes(C:EncodeRecipes())
+      own.p, own.h = savedP, nil
+      Mock.ns.db.reagents = saved
+      local l = reag["Potion"] and reag["Potion"].l or {}
+      return tostring(p.Alchimie.l["Potion"]) .. "," .. tostring(reag["Autre"]) .. "," .. #l .. ","
+        .. tostring(l[1] and l[1].i) .. "," .. tostring(l[2] and l[2].s)
+    end)()""")
+    check(rt == "118,nil,2,765,Fiole vide", "encodage des composants : aller-retour (%s)" % rt)
+
     # quantité ajustée avec +/−, puis une deuxième demande ne réduit pas les quantités
     a.ns.Craft.SetNeedQty(a.ns.Craft, 2320, 12)
     view_a.RequestReagents(view_a, "Chemise en lin brune", 1)

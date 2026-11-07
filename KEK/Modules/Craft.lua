@@ -5,6 +5,8 @@ local L, U = ns.L, ns.U
 local Craft = ns:NewModule("Craft", 44)
 
 local SEP, KV = "`", "="
+local RSEP, RQTY, NONE = ";", "*", "-"   -- composants envoyés à la bande : « 2589*2;2320*1 », « - » si inconnus
+local HASH_V = 2                          -- 2 : les composants comptent dans l'empreinte des recettes (1.10.1)
 
 -- ------------------------------------------------------------------ recettes
 local function ownRecipes()
@@ -206,47 +208,117 @@ function Craft:OwnChanged(broadcast)
   if broadcast then ns:Debounce("craft-push-r", 10, function() ns.Sync:Push("r") end) end
 end
 
+-- Composants d'une recette en texte compact : identifiant (ou nom, si le jeu n'a pas donné de lien) et quantité.
+local function encodeReagents(list)
+  local parts = {}
+  for _, r in ipairs(list or {}) do
+    local key = r.i or (type(r.s) == "string" and not r.s:find("[" .. SEP .. RSEP .. "%*]") and r.s)
+    if key then parts[#parts + 1] = key .. RQTY .. (tonumber(r.q) or 1) end
+  end
+  return #parts > 0 and table.concat(parts, RSEP) or NONE
+end
+
+local function decodeReagents(text)
+  if type(text) ~= "string" or text == NONE then return nil end
+  local list = {}
+  for part in text:gmatch("[^" .. RSEP .. "]+") do
+    local key, q = part:match("^(.-)%" .. RQTY .. "(%d+)$")
+    if key and key ~= "" then
+      local id = key:match("^%d+$") and tonumber(key)
+      list[#list + 1] = { i = id, s = not id and key or nil, q = tonumber(q) or 1 }
+    end
+  end
+  return #list > 0 and list or nil
+end
+
+-- Recettes d'un métier dans un ordre fixe : « id=nom » et leurs composants, au même rang.
+local function encodeProf(entry)
+  local names = {}
+  for name in pairs(entry.l) do names[#names + 1] = name end
+  table.sort(names)
+  local items, reagents = {}, {}
+  for i, name in ipairs(names) do
+    items[i] = entry.l[name] .. KV .. name
+    local rec = ns.db.reagents and ns.db.reagents[name]
+    reagents[i] = encodeReagents(rec and rec.l)
+  end
+  return table.concat(items, SEP), table.concat(reagents, SEP)
+end
+
 function Craft:RecipeHash()
   local own = ownRecipes()
-  if own.h then return own.h end
+  if own.h and own.hv == HASH_V then return own.h end
   local profs = {}
   for prof in pairs(own.p) do profs[#profs + 1] = prof end
   table.sort(profs)
   local parts = {}
   for _, prof in ipairs(profs) do
-    local entry = own.p[prof]
-    local names = {}
-    for name in pairs(entry.l) do names[#names + 1] = name end
-    table.sort(names)
-    parts[#parts + 1] = prof .. (entry.r or 0) .. table.concat(names, SEP)
+    local items, reagents = encodeProf(own.p[prof])
+    parts[#parts + 1] = prof .. (own.p[prof].r or 0) .. items .. "|" .. reagents
   end
-  own.h = U.Hash(table.concat(parts, "|"))
+  own.h, own.hv = U.Hash(table.concat(parts, "|")), HASH_V
   return own.h
 end
 
 function Craft:EncodeRecipes()
   local out = {}
   for prof, entry in pairs(ownRecipes().p) do
-    local items = {}
-    for name, id in pairs(entry.l) do items[#items + 1] = id .. KV .. name end
-    out[prof] = { r = entry.r, m = entry.m, s = table.concat(items, SEP) }
+    local items, reagents = encodeProf(entry)
+    out[prof] = { r = entry.r, m = entry.m, s = items, g = reagents }
   end
   return out
 end
 
+-- Recettes reçues d'un membre, et les composants qui les accompagnent (KEK 1.10.1 et plus).
 function Craft:DecodeRecipes(payload)
-  local p = {}
+  local p, reagents = {}, {}
   for prof, entry in pairs(payload) do
     if type(entry) == "table" then
-      local l = {}
-      for chunk in (entry.s or ""):gmatch("[^" .. SEP .. "]+") do
+      local l, g = {}, {}
+      for chunk in (type(entry.g) == "string" and entry.g or ""):gmatch("[^" .. SEP .. "]+") do g[#g + 1] = chunk end
+      local i = 0
+      for chunk in (type(entry.s) == "string" and entry.s or ""):gmatch("[^" .. SEP .. "]+") do
+        i = i + 1
         local id, name = chunk:match("^(%d+)" .. KV .. "(.+)$")
-        if id then l[name] = tonumber(id) end
+        if id then
+          l[name] = tonumber(id)
+          local list = decodeReagents(g[i])
+          if list then reagents[name] = { p = prof, l = list } end
+        end
       end
       p[prof] = { r = entry.r, m = entry.m, l = l }
     end
   end
-  return p
+  return p, reagents
+end
+
+-- Composants appris des autres : ceux que tu as lus toi-même dans ta fenêtre de métier restent prioritaires.
+function Craft:MergeReagents(sender, reagents)
+  ns.db.reagents = ns.db.reagents or {}
+  local asked = {}
+  for name, rec in pairs(reagents or {}) do
+    local cur = ns.db.reagents[name]
+    if not cur or cur.f then
+      rec.f = sender
+      ns.db.reagents[name] = rec
+    end
+    -- demande au jeu les composants qu'il ne connaît pas encore (pour afficher leur nom)
+    for _, r in ipairs(rec.l) do
+      if r.i and not asked[r.i] and not U.GetItemInfo(r.i) and C_Item and C_Item.RequestLoadItemDataByID then
+        asked[r.i] = true
+        pcall(C_Item.RequestLoadItemDataByID, r.i)
+      end
+    end
+  end
+end
+
+-- Recettes dont KEK connaît les composants : lues dans tes fenêtres de métier, ou reçues de la bande.
+function Craft:ReagentCounts()
+  local own, received = 0, 0
+  for _, rec in pairs(ns.db.reagents or {}) do
+    if rec.f then received = received + 1 else own = own + 1 end
+  end
+  return own, received
 end
 
 -- Recherche : regroupe par recette, liste qui sait la faire.
@@ -778,7 +850,9 @@ function Craft:OnLogin()
     build = function() return self:EncodeRecipes() end,
     apply = function(sender, payload, hash)
       if type(payload) ~= "table" then return end
-      ns.db.recipes[sender] = { p = self:DecodeRecipes(payload) }
+      local p, reagents = self:DecodeRecipes(payload)
+      ns.db.recipes[sender] = { p = p }
+      self:MergeReagents(sender, reagents)
       ns.Sync:StoreHash(sender, "r", hash)
     end,
   })

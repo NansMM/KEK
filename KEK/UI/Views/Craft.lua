@@ -93,6 +93,9 @@ local function createRecipeRow(list, kind)
           tt:AddDoubleLine(string.format("%s ×%d", ns.Craft:ReagentName(r), r.q or 1), string.format(L["tu en as %d"], have),
             0.85, 0.85, 0.85, enough and 0.38 or 0.96, enough and 0.86 or 0.5, enough and 0.56 or 0.4)
         end
+      else
+        tt:AddLine(" ")
+        tt:AddLine(L["Composants pas encore connus : ils arrivent quand l'artisan a KEK 1.10.1 ou plus et a ouvert une fois sa fenêtre de métier."], 0.6, 0.62, 0.68, true)
       end
       tt:AddLine(" ")
       tt:AddLine(L["Clic droit : demander à un artisan, demander les composants · Maj+clic : lien dans le chat"], 0.5, 0.52, 0.58, true)

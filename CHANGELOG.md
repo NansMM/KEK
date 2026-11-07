@@ -1,5 +1,11 @@
 # Historique de KEK
 
+## 1.10.1 — 7 novembre 2026
+
+- Atelier : les composants des recettes de tes amis s'affichent aussi (au survol d'une recette, dans Recettes). KEK les envoie maintenant avec la liste des recettes ; ceux que tu as lus dans ta propre fenêtre de métier restent prioritaires. Tu peux donc demander les composants qui te manquent pour une recette que seul un ami connaît (clic droit, « Composants : … » dans Besoins, ou `/kek besoin`).
+- Il faut que l'artisan ait la 1.10.1 : tant que ce n'est pas le cas, la bulle d'aide le dit. Il n'a pas besoin de rouvrir sa fenêtre de métier s'il l'a déjà fait une fois avec KEK.
+- Autotest : la ligne « Recettes » compte à part les composants reçus de la bande.
+
 ## 1.10.0 — 7 novembre 2026
 
 - Caractéristiques comparées : KEK compare celles de l'objet à celles de ce que tu portes, et non plus seulement le niveau d'objet, avec l'armure et les dégâts par seconde des armes. La notification donne l'écart : « +4 Force, −1 Agilité, +2 Endurance, +5 Armure par rapport à Bottes du singe ». Une arme à deux mains est comparée à l'arme et à ce que tu tiens en main gauche, ensemble.

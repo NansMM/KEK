@@ -1,5 +1,17 @@
 # Historique de KEK
 
+## 1.9.0 — 7 novembre 2026
+
+- Objets LQE : quand un ami ramasse un objet « Lié quand équipé » ou un sac, KEK regarde s'il t'intéresse et te prévient (« LQE pour toi »), avec la raison :
+  - équipement que ta classe peut porter, utilisable à ton niveau ou dans 3 niveaux au plus, meilleur que ce que tu portes, avec des caractéristiques utiles à ta classe ;
+  - recette de ton métier que tu n'as pas encore ;
+  - sac plus grand que ton plus petit sac.
+- Nouvelle vue « Coffre » : les objets LQE et les sacs de toute la bande (rerolls compris), avec qui les garde et où (sac, banque, banque de guilde). Filtres « Pour moi » et « Mes objets », recherche, bouton « Demander » qui prépare le chuchotement.
+- Banque de guilde : lue quand quelqu'un de la bande l'ouvre (si WoW Forever en a une).
+- Besoins : quand un ami ramasse un objet de ta liste de besoins, tu es prévenu (« Marc vient de ramasser Viande de coyote ×4 · tu en cherches encore 10 »).
+- Réglages : interrupteur « LQE pour moi » (fenêtre de KEK et Options > AddOns). Son personnalisable : `boe.ogg`.
+- Autotest : nouvelle ligne « Objets LQE ».
+
 ## 1.8.1 — 7 novembre 2026
 
 - Guilde : sur WoW Forever, un message d'addon envoyé à la guilde peut ne jamais arriver. KEK teste maintenant la guilde à la connexion et ne passe par elle que si elle transmet vraiment (son propre message revient, ou un message de guilde arrive d'un autre joueur). Sinon, il parle aux membres de ta guilde par chuchotement, comme aux autres amis.

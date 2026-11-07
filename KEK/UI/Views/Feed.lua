@@ -27,7 +27,7 @@ local function buildData()
   local filter = ns.db.ui.feedFilter
   local data, lastDay = {}, nil
   for _, e in ipairs(ns.db.feed) do
-    if filter == "all" or e.k == filter then
+    if filter == "all" or e.k == filter or (filter == "loot" and e.k == "boe") then
       local day = U.DayLabel(e.t)
       if day ~= lastDay then
         data[#data + 1] = { header = day }
@@ -68,7 +68,7 @@ local function createRow(list, kind)
   UI.Tip(row, function(tt, self)
     local e = self.e
     if not e then return end
-    if e.k == "loot" and e.i then
+    if (e.k == "loot" or e.k == "boe") and e.i then
       pcall(tt.SetHyperlink, tt, e.i)
       return
     end
@@ -84,7 +84,7 @@ local function createRow(list, kind)
   end, "ANCHOR_CURSOR")
   row:SetScript("OnClick", function(self)
     local e = self.e
-    if e and e.k == "loot" and e.i and IsModifiedClick and IsModifiedClick("CHATLINK") then
+    if e and (e.k == "loot" or e.k == "boe") and e.i and IsModifiedClick and IsModifiedClick("CHATLINK") then
       U.InsertLink(e.i)
     end
   end)

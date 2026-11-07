@@ -711,8 +711,8 @@ def main():
     check(len(addon) == 1 and addon[0].name == "KEK" and addon[0].layout is not None,
           "page « KEK » dans Options > AddOns, avec les contrôles natifs du jeu")
     kinds = [c.kind for c in st.controls.values()]
-    check(kinds.count("checkbox") == 10 and kinds.count("dropdown") == 1 and kinds.count("slider") == 1 and lua_len(st.buttons) == 5,
-          "10 cases à cocher, 1 liste, 1 curseur, 5 boutons")
+    check(kinds.count("checkbox") == 11 and kinds.count("dropdown") == 1 and kinds.count("slider") == 1 and lua_len(st.buttons) == 5,
+          "11 cases à cocher, 1 liste, 1 curseur, 5 boutons")
     byvar = st.byVar
     a.run('Mock.ns.Window:Open("settings")')
     loot = byvar["KEK_alert_loot"]
@@ -1096,6 +1096,145 @@ def main():
     kline = [l for l in k1.ns.Autotest.last.text.split("\n") if "Message de guilde" in l]
     check(kline and kline[0].startswith("[X]"), "autotest : problème signalé (bande de guilde impossible)")
     clients += [k1]
+
+    print("Objets LQE : alertes, coffre, besoins ramassés")
+    l1 = Client("Lucas", "MAGE", "Player-1-0015", 10)
+    l2 = Client("Marc", "WARRIOR", "Player-1-0016", 12)
+    ll = [l1, l2]
+    for c, other in ((l1, "Marc"), (l2, "Lucas")):
+        c.M.friends = c.lua.table(c.lua.table_from({"name": other, "connected": True}))
+        c.run("""
+          local T = Mock.ns.Toasts
+          local orig = T.Show
+          Mock.shown = {}
+          T.Show = function(self, spec) Mock.shown[#Mock.shown + 1] = spec; return orig(self, spec) end
+        """)
+        c.lua.globals().SlashCmdList.KEK("code coffre")
+    pump(ll, 15)
+    check(l1.ns.Store.IsOnline(l1.ns.Store, l2.full), "Lucas (mage 10) et Marc (guerrier 12) dans la même bande")
+
+    def shown(c, kind):
+        return [t for t in c.M.shown.values() if t.kind == kind]
+
+    def loot(c, item_id, slot, count=1, bound=False):
+        c.run("Mock.bags[0][%d] = { id = %d, count = %d%s }" % (slot, item_id, count, ", bound = true" if bound else ""))
+        c.M.fire("BAG_UPDATE_DELAYED")
+
+    loot(l2, 15001, 10)                        # Robe de l'aigle : tissu, intelligence et esprit
+    pump(ll, 3)
+    robe = [t for t in shown(l1, "boe") if "Robe" in (t.title or "")]
+    check(len(robe) == 1 and robe[0].label == "LQE POUR TOI" and "Torse : emplacement vide" in (robe[0].body or ""),
+          "Marc ramasse une robe LQE : Lucas (mage) est prévenu (%s)" % (robe[0].body if robe else "rien"))
+    check(len(shown(l2, "boe")) == 0, "Marc, qui l'a ramassée, n'a pas de notification")
+    feed = [e for e in l1.ns.db.feed.values() if e.k == "boe"]
+    check(len(feed) == 1 and "a ramassé" in l1.ns.Alerts.Describe(l1.ns.Alerts, feed[0].w, feed[0])[0], "la robe est dans le fil de Lucas")
+
+    loot(l1, 15002, 10)                        # Bottes en mailles du singe : niv. 13, agilité
+    pump(ll, 3)
+    boots = shown(l2, "boe")
+    check(len(boots) == 1 and "utilisable dans 1 niveau" in (boots[0].body or ""),
+          "Lucas ramasse des bottes en mailles : Marc (guerrier 12) est prévenu, utilisables dans 1 niveau")
+
+    loot(l2, 15005, 11)                        # Lame du tigre : force et agilité, inutile pour un mage
+    pump(ll, 3)
+    check(not any("Lame" in (t.title or "") for t in shown(l1, "boe")), "une épée de force et d'agilité n'intéresse pas le mage")
+
+    loot(l2, 15003, 12)                        # Patron : Gilet en lin (Couture 55)
+    pump(ll, 3)
+    pattern = [t for t in shown(l1, "boe") if "Patron" in (t.title or "")]
+    check(len(pattern) == 1 and "recette de Couture que tu n'as pas" in (pattern[0].body or ""),
+          "Marc ramasse un patron de couture : Lucas, tailleur, est prévenu")
+
+    loot(l2, 15004, 13)                        # Sac en laine (8 places)
+    pump(ll, 3)
+    bag = [t for t in shown(l1, "boe") if "Sac" in (t.title or "")]
+    check(len(bag) == 1 and "sac de 8 places" in (bag[0].body or ""), "un sac de 8 places intéresse Lucas (emplacement de sac libre)")
+
+    # un objet déjà lié n'est ni annoncé ni partagé
+    before = len(shown(l1, "boe"))
+    loot(l2, 15001, 14, bound=True)
+    pump(ll, 15)
+    check(len(shown(l1, "boe")) == before, "robe déjà liée ramassée : pas d'annonce")
+    chest = list(l1.ns.Boe.All(l1.ns.Boe).values())
+    marc = [e for e in chest if e.owner == l2.full and e.place == "b"]
+    robes = [e for e in marc if e.s.startswith("item:15001")]
+    check(len(marc) == 4 and len(robes) == 1 and robes[0].n == 1,
+          "coffre de Lucas : les 4 objets échangeables de Marc, la robe liée en moins (%d)" % len(marc))
+    check(l1.ns.Boe.ForMe(l1.ns.Boe) == 3, "3 objets pour Lucas : robe, patron, sac (%d)" % l1.ns.Boe.ForMe(l1.ns.Boe))
+
+    # banque : Marc range la robe
+    l2.run("Mock.bags[0][10] = nil; Mock.bags[-1] = { [1] = { id = 15001, count = 1 } }")
+    l2.M.fire("BANKFRAME_OPENED")
+    l2.M.fire("BAG_UPDATE_DELAYED")
+    pump(ll, 3)
+    l2.M.fire("BANKFRAME_CLOSED")
+    pump(ll, 15)
+    chest = list(l1.ns.Boe.All(l1.ns.Boe).values())
+    check(any(e.owner == l2.full and e.place == "k" and e.s.startswith("item:15001") for e in chest)
+          and not any(e.owner == l2.full and e.place == "b" and e.s.startswith("item:15001") for e in chest),
+          "la robe passe dans la colonne « Banque » de Marc")
+
+    # banque de guilde, lue quand Lucas l'ouvre
+    l1.run("""
+      Mock.player.guild = "Les Coffres"
+      Mock.gbank = { { [5] = { id = 15002, count = 1 } }, { [1] = { id = 2589, count = 20 } } }
+      Mock.fire("GUILDBANKFRAME_OPENED")
+    """)
+    pump(ll, 15)
+    check(l1.M.gbankQueries >= 2, "KEK demande au jeu chaque onglet de la banque de guilde")
+    chest2 = list(l2.ns.Boe.All(l2.ns.Boe).values())
+    gb = [e for e in chest2 if e.place == "g"]
+    check(len(gb) == 1 and gb[0].owner == "Les Coffres" and gb[0].s.startswith("item:15002"),
+          "Marc voit les bottes de la banque de guilde « Les Coffres » (l'étoffe n'est pas un LQE)")
+    check(len(gb) == 1 and l2.ns.Boe.Interest(l2.ns.Boe, gb[0].s) is not None, "et elles sont pour lui")
+    l1.run('Mock.fire("GUILDBANKFRAME_CLOSED"); Mock.player.guild = nil')
+
+    # besoins : Marc ramasse ce que Lucas cherche
+    l1.lua.globals().SlashCmdList.KEK("besoin 10 viande de coyote : pour ma cuisine")
+    pump(ll, 8)
+    loot(l2, 2673, 15, count=3)
+    pump(ll, 1)
+    loot(l2, 2673, 15, count=4)
+    pump(ll, 10)
+    got = shown(l1, "got")
+    check(len(got) == 1 and "Marc" in got[0].title and "vient de ramasser" in got[0].title and "×4" in got[0].title and "encore 10" in (got[0].body or ""),
+          "Marc ramasse 4 Viande de coyote : Lucas est prévenu une seule fois (%s)" % ([(t.title, t.body) for t in got]))
+    check(not any(e.k == "got" for e in l1.ns.db.feed.values()), "pas de ligne dans le fil pour ça")
+    check(len(shown(l2, "got")) == 0, "Marc n'est pas prévenu de son propre butin")
+
+    # interrupteur « LQE pour moi » coupé
+    l1.ns.db.alerts.boe = False
+    before = len(shown(l1, "boe"))
+    loot(l2, 15001, 16)
+    pump(ll, 3)
+    check(len(shown(l1, "boe")) == before, "LQE pour moi désactivé : pas de notification")
+    l1.ns.db.alerts.boe = True
+
+    # la vue Coffre
+    l1.run("""
+      local ns = Mock.ns
+      ns.Window:Open("chest")
+      ns.Window:Refresh()
+      Mock.advance(0.5)
+      local view = ns.Window.byId.chest
+      Mock.chestAll = #view.list.data
+      ns.db.ui.chestFilter = "forme"; view:Refresh()
+      Mock.chestForMe = #view.list.data
+      ns.db.ui.chestFilter = "mine"; view:Refresh()
+      Mock.chestMine = #view.list.data
+      ns.db.ui.chestFilter = "all"; view:Refresh()
+      Mock.chestBadge = view:Badge()
+      Mock.chestSub = view:Subtitle()
+    """)
+    check(l1.M.chestAll >= 5 and l1.M.chestForMe == l1.ns.Boe.ForMe(l1.ns.Boe) and l1.M.chestMine >= 1,
+          "vue Coffre : %d objets, %d pour toi, %d à toi" % (l1.M.chestAll, l1.M.chestForMe, l1.M.chestMine))
+    print("        sous-titre :", l1.M.chestSub)
+    l1.ns.Autotest.Run(l1.ns.Autotest)
+    pump(ll, 7)
+    lq = [x for x in l1.ns.Autotest.last.text.split(chr(10)) if "Objets LQE" in x]
+    print("       |", lq[0] if lq else "(pas de ligne)")
+    check(lq and lq[0].startswith("[OK]") and "3 objet(s) de la bande pour toi" in lq[0], "autotest : ligne « Objets LQE »")
+    clients += ll
 
     print("Menu Options : repli si l'API du jeu diffère")
     z = Client("Zoe", "MAGE", "Player-1-0007", 5, pre="function Settings.RegisterProxySetting() error('signature différente') end")

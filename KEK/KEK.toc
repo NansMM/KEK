@@ -2,7 +2,7 @@
 ## Title: |cffff8c3dKEK|r
 ## Notes: Le compagnon de ta bande d'amis : membres, alertes, Hall of Shame, soirée, course au 60 et atelier.
 ## Author: Nans
-## Version: 1.8.1
+## Version: 1.9.0
 ## IconTexture: Interface\AddOns\KEK\Media\logo
 ## AddonCompartmentFunc: KEK_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: KEK_OnAddonCompartmentEnter
@@ -29,6 +29,7 @@ Modules\Deaths.lua
 Modules\Session.lua
 Modules\Race.lua
 Modules\Craft.lua
+Modules\Boe.lua
 
 UI\Theme.lua
 UI\Widgets.lua
@@ -40,6 +41,7 @@ UI\Views\Deaths.lua
 UI\Views\Session.lua
 UI\Views\Race.lua
 UI\Views\Craft.lua
+UI\Views\Chest.lua
 UI\Views\Settings.lua
 UI\Minimap.lua
 UI\Options.lua

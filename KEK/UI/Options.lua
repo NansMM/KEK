@@ -19,7 +19,8 @@ local ALERTS = {
   { "boss", L["Boss vaincus"], L["Un ami vient à bout d'un boss."] },
   { "skill", L["Paliers de métier"], L["Un ami atteint 75, 150, 225 ou 300 dans un métier."] },
   { "presence", L["Connexions"], L["Un ami se connecte ou se déconnecte."] },
-  { "need", L["Besoins"], L["Un ami indique un objet dont il a besoin (et KEK te dit si tu l'as)."] },
+  { "need", L["Besoins"], L["Un ami indique un objet dont il a besoin (et KEK te dit si tu l'as), ou ramasse un objet que tu cherches."] },
+  { "boe", L["Objets LQE pour moi"], L["Un ami ramasse un objet LQE ou un sac qui t'intéresse : ta classe peut le porter, ton niveau le permet bientôt, il est meilleur que ce que tu portes, ou c'est une recette de ton métier que tu n'as pas."] },
 }
 
 -- Ouvre la fenêtre de KEK par-dessus le menu Options (sans fermer celui-ci).

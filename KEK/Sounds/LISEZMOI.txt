@@ -12,6 +12,7 @@ remplacer les sons du jeu :
   skill.ogg     palier de métier (75, 150, 225, 300)
   presence.ogg  un ami se connecte ou se déconnecte
   need.ogg      un ami a besoin de quelque chose
+  boe.ogg       un objet LQE ramassé par un ami t'intéresse
 
 Important : WoW ne voit les nouveaux fichiers qu'après un redémarrage complet du jeu
 (un simple /reload ne suffit pas). Sans fichier, KEK utilise un son du jeu.

@@ -113,6 +113,36 @@ add(L["Présence lue dans le jeu"], function()
   return "ok", sources .. " · " .. table.concat(list, ", ")
 end)
 
+add(L["Objets LQE"], function()
+  local B = ns.Boe
+  -- le jeu dit-il comment un objet se lie ? (14e valeur de GetItemInfo)
+  local tested, bindRead = 0, false
+  local CC = C_Container
+  for bag = 0, (NUM_BAG_SLOTS or 4) do
+    local slots = CC and CC.GetContainerNumSlots and CC.GetContainerNumSlots(bag) or 0
+    for slot = 1, slots do
+      local info = CC.GetContainerItemInfo and CC.GetContainerItemInfo(bag, slot)
+      if info and info.hyperlink and tested < 30 then
+        tested = tested + 1
+        if select(14, U.GetItemInfo(info.hyperlink)) ~= nil then bindRead = true end
+      end
+    end
+  end
+  local mine = ns.db.boe and ns.db.boe[ns.me] or {}
+  local parts = {
+    string.format(L["liaison lue : %s"], tested == 0 and L["sacs vides"] or yes(bindRead)),
+    string.format(L["%d dans tes sacs"], #(mine.b or {})),
+    mine.k and string.format(L["%d en banque"], #mine.k) or L["banque pas encore ouverte"],
+    string.format(L["banque de guilde : %s"], B:HasGuildBank() and L["fonctions présentes"] or L["absente de ce client"]),
+    string.format(L["caractéristiques : %s"], yes((C_Item and C_Item.GetItemStats) or GetItemStats)),
+    string.format(L["infobulles : %s"], yes(C_TooltipInfo and C_TooltipInfo.GetHyperlink)),
+    string.format(L["%d objet(s) de la bande pour toi"], B:ForMe()),
+  }
+  local status = (tested == 0 and "info") or (bindRead and "ok") or "warn"
+  if status == "warn" then parts[#parts + 1] = L["le jeu ne dit pas comment les objets se lient : le Coffre restera vide"] end
+  return status, table.concat(parts, " · ")
+end)
+
 add(L["Messages de KEK"], function()
   local st = ns.Comm.stats
   local sent = {}

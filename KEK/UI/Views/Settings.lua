@@ -97,32 +97,30 @@ function View:Build(frame)
   self.modeHint:SetWordWrap(true)
 
   -- ---------------------------------------------------------------- notifications
-  local notif = section(frame, L["NOTIFICATIONS"], "bell", 176)
+  local notif = section(frame, L["NOTIFICATIONS"], "bell", 178)
   notif:SetPoint("TOPLEFT", band, "BOTTOMLEFT", 0, -12)
   notif:SetPoint("TOPRIGHT", band, "BOTTOMRIGHT", 0, -12)
   local a = ns.db.alerts
   local toggles = {
     { "level", L["Niveaux"] }, { "loot", L["Butin"] }, { "death", L["Morts"] },
     { "boss", L["Boss vaincus"] }, { "skill", L["Paliers de métier"] }, { "presence", L["Connexions"] },
-    { "need", L["Besoins"] },
+    { "need", L["Besoins"] }, { "boe", L["LQE pour moi"] }, { "sound", L["Sons"] },
   }
+  -- grille de 3 × 3, puis une ligne pour le butin à partager et tes propres exploits
   self.toggles = {}
   for i, t in ipairs(toggles) do
     local key = t[1]
     local row = labeledToggle(notif, t[2], a[key], function(v) a[key] = v end)
     self.toggles[key] = row.toggle
     local col, line = (i - 1) % 3, math.floor((i - 1) / 3)
-    row:SetPoint("TOPLEFT", notif, "TOPLEFT", 16 + col * 180, -46 - line * 32)
+    row:SetPoint("TOPLEFT", notif, "TOPLEFT", 16 + col * 180, -46 - line * 30)
   end
-  local sound = labeledToggle(notif, L["Sons"], a.sound, function(v) a.sound = v end)
-  self.toggles.sound = sound.toggle
-  sound:SetPoint("TOPLEFT", notif, "TOPLEFT", 196, -110)
   local selfToggle = labeledToggle(notif, L["Mes propres exploits"], a.self, function(v) a.self = v end)
   self.toggles.self = selfToggle.toggle
-  selfToggle:SetPoint("TOPLEFT", notif, "TOPLEFT", 376, -110)
+  selfToggle:SetPoint("TOPLEFT", notif, "TOPLEFT", 376, -139)
 
   local lootLabel = UI.Text(notif, 12, C.muted)
-  lootLabel:SetPoint("TOPLEFT", notif, "TOPLEFT", 16, -146)
+  lootLabel:SetPoint("TOPLEFT", notif, "TOPLEFT", 16, -144)
   lootLabel:SetText(L["Butin à partager :"])
   local loot = UI.Segmented(notif, {
     { value = 3, label = L["Rare et +"] },
@@ -132,7 +130,7 @@ function View:Build(frame)
   self.lootSegmented = loot
 
   local test = UI.Button(notif, { text = L["Tester"], icon = "star", style = "secondary", h = 28, onClick = function() ns.Toasts:Demo() end })
-  test:SetPoint("BOTTOMRIGHT", notif, "BOTTOMRIGHT", -16, 14)
+  test:SetPoint("TOPRIGHT", notif, "TOPRIGHT", -16, -10)
   local move = UI.Button(notif, { text = L["Déplacer"], icon = "pin", style = "secondary", h = 28, onClick = function() ns.Toasts:Unlock() end })
   move:SetPoint("RIGHT", test, "LEFT", -8, 0)
   local resetPos = UI.IconButton(notif, "close", { size = 28, iconSize = 11, tooltip = L["Position par défaut"], onClick = function() ns.Toasts:Reset() end })

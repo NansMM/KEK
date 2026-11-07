@@ -11,9 +11,10 @@ L'addon WoW Forever de ta bande d'amis : voir qui joue, fêter les exploits, se 
 | **Hall of Shame** | Podium des morts, titres honorifiques (Paillasson, Kamikaze, Poisson rouge, Spéléologue, Récidiviste, Habitué, Touriste, Immortel) et détail de chaque mort : où, à quel niveau, contre quelle créature, chute ou noyade, et une épitaphe. |
 | **Soirée** | Ton récap en direct (durée, XP et XP par heure, or, ennemis, quêtes, morts, zones, objets, meilleur butin), ta soirée précédente, et le palmarès de la bande ce soir (MVP de l'XP, Boucher, Mécène, Chat noir, Pilleur…). Bouton pour partager ton récap dans le chat. |
 | **Course au 60** | Une piste par personnage avec sa position, le temps de jeu restant estimé et une date d'arrivée probable, plus la courbe niveau / temps de jeu de toute la bande. |
+| **Coffre** | Les objets LQE (« Lié quand équipé ») et les sacs que la bande garde, rerolls compris : qui les a, et où (sac, banque, banque de guilde). Ceux qui t'intéressent passent en tête, avec la raison. Bouton « Demander » pour chuchoter au propriétaire. |
 | **Atelier** | Annuaire de toutes les recettes de la bande (recherche sans accents, filtre par métier) et liste de besoins : dis à la bande ce qu'il te faut (ex. « 10 Viande de coyote, pour ma cuisine »). Tes amis reçoivent une notification qui leur dit s'ils en ont, et KEK indique qui l'a dans ses sacs ou sa banque (rerolls compris) et qui sait le fabriquer. |
 
-Les notifications apparaissent en direct quand un ami monte de niveau, trouve un objet épique, meurt, tue un boss ou atteint un palier de métier. Elles se mettent en pause au survol et un clic ouvre la vue concernée. Le passage au niveau 60 a droit à une carte dorée.
+Les notifications apparaissent en direct quand un ami monte de niveau, trouve un objet épique, meurt, tue un boss ou atteint un palier de métier. Quand un ami ramasse un objet LQE qui t'intéresse, ou un objet de ta liste de besoins, tu es prévenu toi seul. Elles se mettent en pause au survol et un clic ouvre la vue concernée. Le passage au niveau 60 a droit à une carte dorée.
 
 ## Installation
 
@@ -75,13 +76,15 @@ Forever applique les règles d'addons de Midnight. KEK les respecte :
 
 - **Besoins** : dans Atelier > Besoins, tape simplement le nom de l'objet (des suggestions apparaissent), même si tu ne l'as jamais eu. Tu peux aussi le glisser depuis tes sacs, ou faire Maj+clic sur n'importe quel objet pendant que la liste des besoins est affichée : sacs, lien dans le chat, fenêtre de métier, butin. Le curseur passe alors à la quantité : tape le nombre puis Entrée. Tes amis sont prévenus, et la notification leur dit s'ils en ont. Les boutons − et + à côté de la quantité l'ajustent (Maj : par 10).
 - **Composants d'une recette** : ouvre une fois ta fenêtre de métier, KEK mémorise les composants de tes recettes. Ensuite, clic droit sur une recette dans Atelier > Recettes, « Demander les composants qui me manquent », ou tape le nom de la recette dans Besoins et choisis « Composants : … » (la quantité = nombre de fabrications). KEK ne demande que ce qui manque, en comptant tes sacs et tes banques, et la bande reçoit une seule notification pour toute la liste.
+- **Objets LQE** : quand un ami ramasse un objet « Lié quand équipé », KEK regarde s'il t'intéresse : ta classe peut le porter, ton niveau le permet (ou le permettra dans 3 niveaux), il est meilleur que ce que tu portes à cet emplacement et ses caractéristiques servent à ta classe. Une recette de ton métier que tu n'as pas, ou un sac plus grand que ton plus petit sac, comptent aussi. La notification dit pourquoi ; le Coffre liste tout ce que la bande peut s'échanger. Le niveau d'objet reste une comparaison approximative : à toi de juger.
+- **Banque de guilde** : si WoW Forever en a une, KEK la lit quand quelqu'un de la bande l'ouvre, et la partage avec la date de lecture.
 - **Champs de bataille** : les morts en champ de bataille et en arène ne comptent pas (ni Hall of Shame, ni soirée).
 - **Recettes** : ouvre une fois la fenêtre de chaque métier. KEK mémorise tes recettes et les partage.
 - **Banque** : ouvre ta banque une fois par personnage. Son contenu compte ensuite dans les besoins de la bande.
 - **Sons** : tu peux mettre tes propres sons dans `KEK\Sounds`. Les noms attendus sont dans `LISEZMOI.txt`.
 - **Réglages** : tu les trouves à deux endroits qui restent synchronisés. Dans **Options > AddOns > KEK** (menu du jeu) : notifications, sons, butin à partager, bouton de la minicarte et taille de la fenêtre. Dans la fenêtre de KEK (Réglages) : tout cela plus le code de la bande, ton pseudo et l'ajout d'un ami.
 - **Fenêtre** : elle est déplaçable, redimensionnable (coin en bas à droite) et se ferme avec Échap.
-- **Ce qui est partagé avec la bande** : niveau, zone, spécialisation, métiers et recettes, besoins et quantités possédées, morts, temps de jeu et statistiques de soirée (dont l'or gagné). Ces infos ne partent que vers les membres de ta bande. Pour les trouver, KEK envoie à tes amis en ligne un simple « bonjour » invisible, sans aucune de ces infos ; un ami qui n'a pas KEK ou pas le même code l'ignore.
+- **Ce qui est partagé avec la bande** : niveau, zone, spécialisation, métiers et recettes, besoins et quantités possédées, objets LQE et sacs que tu peux échanger (sacs, banque, banque de guilde), morts, temps de jeu et statistiques de soirée (dont l'or gagné). Ces infos ne partent que vers les membres de ta bande. Pour les trouver, KEK envoie à tes amis en ligne un simple « bonjour » invisible, sans aucune de ces infos ; un ami qui n'a pas KEK ou pas le même code l'ignore.
 
 ## Pour les curieux (développement)
 

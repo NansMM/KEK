@@ -44,6 +44,17 @@ M.items = {
   [2673] = { name = "Viande de coyote", q = 1, icon = 133970 },
   [2320] = { name = "Fil grossier", q = 1, icon = 132889 },
   [2684] = { name = "Ragoût de coyote", q = 1, icon = 133971 },
+  -- objets LQE (« Lié quand équipé ») et sac, pour le Coffre
+  [15001] = { name = "Robe de l'aigle", q = 2, icon = 132666, ilvl = 24, minLevel = 9, classID = 4, subclassID = 1,
+              subType = "Tissu", equipLoc = "INVTYPE_ROBE", bind = 2, stats = { ITEM_MOD_INTELLECT_SHORT = 3, ITEM_MOD_SPIRIT_SHORT = 3 } },
+  [15002] = { name = "Bottes en mailles du singe", q = 2, icon = 132535, ilvl = 18, minLevel = 13, classID = 4, subclassID = 3,
+              subType = "Mailles", equipLoc = "INVTYPE_FEET", bind = 2, stats = { ITEM_MOD_AGILITY_SHORT = 3, ITEM_MOD_STAMINA_SHORT = 2 } },
+  [15003] = { name = "Patron : Gilet en lin", q = 1, icon = 134939, ilvl = 11, minLevel = 0, classID = 9, subclassID = 2,
+              subType = "Couture", bind = 2, tip = "Requiert Couture (55)" },
+  [15004] = { name = "Sac en laine", q = 1, icon = 133639, ilvl = 15, minLevel = 0, classID = 1, subclassID = 0,
+              subType = "Sac", bind = 0, tip = "8 emplacements Sac" },
+  [15005] = { name = "Lame du tigre", q = 2, icon = 135274, ilvl = 20, minLevel = 8, classID = 2, subclassID = 7,
+              subType = "Épées à une main", equipLoc = "INVTYPE_WEAPON", bind = 2, stats = { ITEM_MOD_STRENGTH_SHORT = 2, ITEM_MOD_AGILITY_SHORT = 2 } },
 }
 M.bags = { [0] = { [1] = { id = 2589, count = 14 }, [3] = { id = 2568, count = 1 } } }
 M.trade = nil
@@ -542,12 +553,13 @@ function SendChatMessage(msg, channel)
 end
 
 C_Container = {}
-function C_Container.GetContainerNumSlots(bag) if bag == 0 then return 16 end return 0 end
+M.bagSlots = { [0] = 16, [-1] = 24 }   -- sac à dos, banque
+function C_Container.GetContainerNumSlots(bag) return M.bagSlots[bag] or 0 end
 function C_Container.GetContainerItemInfo(bag, slot)
   local b = M.bags[bag]
   local it = b and b[slot]
   if not it then return nil end
-  return { itemID = it.id, stackCount = it.count, hyperlink = link(it.id), quality = M.items[it.id].q }
+  return { itemID = it.id, stackCount = it.count, hyperlink = link(it.id), quality = M.items[it.id].q, isBound = it.bound == true }
 end
 NUM_BAG_SLOTS, NUM_BANKBAGSLOTS, BANK_CONTAINER = 4, 6, -1
 
@@ -557,11 +569,46 @@ local function getItemInfo(x)
   local id = type(x) == "number" and x or tonumber(tostring(x):match("item:(%d+)"))
   local it = id and M.items[id]
   if not it or M.uncached[id] then return nil end
-  return it.name, link(id), it.q, 20, 15, "Divers", "Divers", 20, "", it.icon
+  return it.name, link(id), it.q, it.ilvl or 20, it.minLevel or 15, "Divers", it.subType or "Divers", 20, it.equipLoc or "", it.icon,
+    0, it.classID or 15, it.subclassID or 0, it.bind or 0
 end
 function GetItemIcon(id) local it = M.items[id]; return it and it.icon end
 -- comme dans l'interface 12.x : plus de GetItemInfo global, seulement C_Item.GetItemInfo
 C_Item = { GetItemIconByID = function(id) local it = M.items[id]; return it and it.icon end, GetItemInfo = getItemInfo }
+function C_Item.GetItemStats(l)
+  local id = tonumber(tostring(l):match("item:(%d+)"))
+  local it = id and M.items[id]
+  local out = {}
+  for k, v in pairs(it and it.stats or {}) do out[k] = v end
+  return out
+end
+-- infobulles (interface 12.x) : lignes de texte d'un objet
+C_TooltipInfo = {}
+function C_TooltipInfo.GetHyperlink(l)
+  local id = tonumber(tostring(l):match("item:(%d+)"))
+  local it = id and M.items[id]
+  if not it then return nil end
+  local lines = { { leftText = it.name } }
+  if it.bind == 2 then lines[#lines + 1] = { leftText = "Lié quand équipé" } end
+  if it.tip then lines[#lines + 1] = { leftText = it.tip } end
+  return { lines = lines }
+end
+ITEM_MIN_SKILL = "Requiert %s (%d)"
+CONTAINER_SLOTS = "%d emplacements %s"
+-- banque de guilde : M.gbank = { [onglet] = { [case] = { id, count } } }
+M.gbank = {}
+M.gbankQueries = 0
+MAX_GUILDBANK_SLOTS_PER_TAB = 98
+function GetNumGuildBankTabs() return #M.gbank end
+function GetGuildBankTabInfo(tab) return "Onglet " .. tab, 0, true end
+function QueryGuildBankTab(tab) M.gbankQueries = M.gbankQueries + 1 end
+function GetGuildBankItemLink(tab, slot) local t = M.gbank[tab]; local it = t and t[slot]; return it and link(it.id) or nil end
+function GetGuildBankItemInfo(tab, slot)
+  local t = M.gbank[tab]
+  local it = t and t[slot]
+  if not it then return nil end
+  return M.items[it.id].icon, it.count or 1, false, false, M.items[it.id].q
+end
 function C_Item.RequestLoadItemDataByID(id)
   num(id, "id")
   if M.uncached[id] then C_Timer.After(0.3, function() M.uncached[id] = nil; M.fire("GET_ITEM_INFO_RECEIVED", id, true) end) end

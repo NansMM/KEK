@@ -310,6 +310,15 @@ def g_flame():
     return union(poly(left + right), circle(0.5, 0.64, 0.215))
 
 
+def g_chest():
+    # coffre : couvercle bombé, caisse, fente entre les deux, serrure au centre
+    lid = rrect(0.12, 0.20, 0.88, 0.46, 0.16)
+    box = rrect(0.12, 0.44, 0.88, 0.84, 0.06)
+    shape = sub(union(lid, box), seg(0.12, 0.47, 0.88, 0.47, 0.035))
+    shape = sub(shape, rrect(0.41, 0.37, 0.59, 0.60, 0.04))
+    return union(shape, rrect(0.455, 0.42, 0.545, 0.55, 0.02))
+
+
 def g_dot():
     return circle(0.5, 0.5, 0.5)
 
@@ -322,6 +331,7 @@ GLYPHS = {
     "trash": g_trash, "trophy": g_trophy, "heart": g_heart, "sword": g_sword,
     "hourglass": g_hourglass, "star": g_star, "bag": g_bag, "book": g_book, "bell": g_bell,
     "sliders": g_sliders, "grip": g_grip, "link": g_link, "flame": g_flame, "dot": g_dot,
+    "chest": g_chest,
 }
 
 

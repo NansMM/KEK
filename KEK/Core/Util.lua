@@ -483,6 +483,7 @@ U.SOUNDS = {
   death = 8960,     -- appel aux armes
   boss = 8959,
   need = 878,       -- un ami a besoin de quelque chose
+  boe = 8959,       -- un objet LQE pour toi
   skill = 878,      -- quête terminée
   presence = 3081,  -- chuchotement
   max = 888,

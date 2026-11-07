@@ -15,7 +15,12 @@ Alerts.KINDS = {
   skill = { label = L["MÉTIER"], glyph = "hammer", color = { 0.40, 0.68, 1.00 } },
   presence = { label = L["CONNEXION"], glyph = "users", color = { 0.38, 0.86, 0.56 } },
   need = { label = L["BESOIN"], glyph = "bag", color = { 0.98, 0.76, 0.33 } },
+  boe = { label = L["LQE"], glyph = "star", color = { 0.12, 1.00, 0.00 } },
+  got = { label = L["TROUVÉ"], glyph = "bag", color = { 0.98, 0.76, 0.33 } },
 }
+
+-- Événements personnels : notification seulement, pas de ligne dans le fil.
+local NO_FEED = { presence = true, got = true }
 
 Alerts.seen = {}
 Alerts.pendingOffline = {}
@@ -89,8 +94,10 @@ function Alerts:ScanLoot()
       local link = e.link or select(2, U.GetItemInfo(id))
       if link and not U.Secret(link) then
         ns:Fire("LOOT_SELF", link, gained)
+        -- objet LQE ou sac : annoncé à part (la bande juge s'il l'intéresse) ; sinon butin rare et +
+        local announced = ns.Boe and ns.Boe:OnLoot(link, gained)
         local q = e.q or U.ItemQuality(link)
-        if q and not U.Secret(q) and q >= 3 then
+        if not announced and q and not U.Secret(q) and q >= 3 then
           self:Emit("loot", { i = link, q = q, c = gained > 1 and gained or nil, z = GetRealZoneText() })
         end
       end
@@ -184,14 +191,14 @@ end
 -- ------------------------------------------------------------------ réception
 function Alerts:Receive(who, data, isSelf)
   if type(data) ~= "table" or not self.KINDS[data.k] then return end
-  local key = who .. ":" .. data.k .. ":" .. tostring(data.t or 0)
+  local key = who .. ":" .. data.k .. ":" .. tostring(data.t or 0) .. ":" .. tostring(U.ItemID(data.i) or "")
   if self.seen[key] then return end
   self.seen[key] = true
 
   local entry = U.Copy(data)
   entry.w = who
   entry.t = entry.t or ns.Now()
-  if data.k ~= "presence" then
+  if not NO_FEED[data.k] then
     local feed = ns.db.feed
     table.insert(feed, 1, entry)
     for i = #feed, FEED_MAX + 1, -1 do feed[i] = nil end
@@ -199,15 +206,39 @@ function Alerts:Receive(who, data, isSelf)
   ns:Fire("EVENT", who, entry)
   ns:Fire("DATA", "feed")
 
-  if self:ShouldToast(entry, isSelf) and ns.Toasts then
+  if not ns.Toasts then return end
+  if entry.k == "boe" and not isSelf and ns.Boe and not ns.Boe:Info(entry.i) then
+    -- objet pas encore connu de ton jeu : on attend ses caractéristiques avant de juger s'il t'intéresse
+    U.WithItemLink(U.ItemID(entry.i), function()
+      if self:ShouldToast(entry, isSelf) then ns.Toasts:Show(self:ToastSpec(who, entry)) end
+    end)
+    return
+  end
+  if self:ShouldToast(entry, isSelf) then
     ns.Toasts:Show(self:ToastSpec(who, entry))
   end
 end
 
+-- L'objet LQE intéresse-t-il ton personnage ? (texte de la raison, ou nil)
+function Alerts:BoeReason(who, e)
+  if who == ns.me or not ns.Boe then return nil end
+  return ns.Boe:Interest(e.i)
+end
+
 function Alerts:ShouldToast(e, isSelf)
   local a = ns.db.alerts
-  if not a[e.k] then return false end
+  if not a[e.k] and e.k ~= "boe" and e.k ~= "got" then return false end
   if e.k == "loot" and (e.q or 0) < (a.lootQuality or 4) then return false end
+  if e.k == "got" then
+    if isSelf or not a.need or type(e.o) ~= "table" then return false end
+    for _, o in ipairs(e.o) do if o == ns.me then return true end end
+    return false
+  end
+  if e.k == "boe" then
+    local rare = a.loot and (e.q or 0) >= (a.lootQuality or 4)
+    if isSelf then return a.self and rare end
+    return (a.boe and self:BoeReason(who, e) ~= nil) or rare
+  end
   if isSelf then
     if e.k == "level" and e.l == ns.MAX_LEVEL then return true end
     return a.self
@@ -228,6 +259,17 @@ function Alerts:Describe(who, e)
     local item = U.ItemText(e.i, U.ItemID(e.i))
     if e.c and e.c > 1 then item = item .. " ×" .. e.c end
     return string.format(L["%s a obtenu"], name), item
+  elseif e.k == "boe" then
+    local item = U.ItemText(e.i, U.ItemID(e.i))
+    local reason = self:BoeReason(who, e)
+    if reason then return string.format(L["%s a ramassé %s"], name, item), string.format(L["Pour toi : %s"], reason) end
+    return string.format(L["%s a ramassé %s"], name, item), L["Lié quand équipé : on peut se l'échanger"]
+  elseif e.k == "got" then
+    local item = U.ItemText(e.i, U.ItemID(e.i))
+    if (e.c or 1) > 1 then item = item .. " ×" .. e.c end
+    local left = ns.Boe and ns.Boe:StillNeeded(e.i)
+    local body = left and left > 0 and string.format(L["tu en cherches encore %d"], left) or L["c'est sur ta liste de besoins"]
+    return string.format(L["%s vient de ramasser %s"], name, item), body
   elseif e.k == "need" and type(e.m) == "table" then
     -- liste de composants pour une recette
     local what = e.r and (e.r .. ((e.c or 1) > 1 and (" ×" .. e.c) or "")) or nil
@@ -272,7 +314,8 @@ function Alerts:Describe(who, e)
 end
 
 function Alerts:Icon(e)
-  if e.k == "loot" then return U.ItemIcon(e.i), "item", e.q end
+  if e.k == "loot" or e.k == "boe" then return U.ItemIcon(e.i), "item", e.q end
+  if e.k == "got" then return U.ItemIcon(e.i), "item", U.ItemQuality(e.i) end
   if e.k == "need" and e.i then return U.ItemIcon(e.i), "item", U.ItemQuality(e.lk or e.i) end
   if e.k == "skill" then return U.ProfIcon(e.s), "item" end
   return nil
@@ -306,6 +349,22 @@ function Alerts:ToastSpec(who, e)
   elseif e.k == "presence" then
     spec.compact, spec.duration = true, 4
     if not e.on then spec.color = { 0.55, 0.57, 0.63 } end
+  elseif e.k == "boe" then
+    spec.link = e.i
+    if self:BoeReason(who, e) then
+      spec.label, spec.color, spec.duration, spec.sound = L["LQE POUR TOI"], { 0.12, 1.00, 0.00 }, 10, "boe"
+    else
+      local r, g, b = U.QualityColor(e.q or 2)
+      spec.color, spec.sound = { r, g, b }, "loot"
+      spec.label = (e.q or 0) >= 5 and L["BUTIN LÉGENDAIRE"] or (e.q == 4 and L["BUTIN ÉPIQUE"]) or L["BUTIN RARE"]
+    end
+    spec.view = "chest"
+  elseif e.k == "got" then
+    spec.link, spec.duration, spec.sound = e.i, 9, "need"
+    spec.onClick = function()
+      ns.db.ui.craftTab = "needs"
+      ns.Window:Open("craft")
+    end
   elseif e.k == "need" then
     spec.duration = 9
     spec.onClick = function()

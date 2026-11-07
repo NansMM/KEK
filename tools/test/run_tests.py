@@ -1135,6 +1135,29 @@ def main():
     check(len(boots) == 1 and "utilisable dans 1 niveau" in (boots[0].body or ""),
           "Lucas ramasse des bottes en mailles : Marc (guerrier 12) est prévenu, utilisables dans 1 niveau")
 
+    # armure : seulement le type principal de la classe (un guerrier ne veut pas de tissu), capes pour tous
+    before = len(shown(l2, "boe"))
+    loot(l1, 15006, 11)                        # Bottes en tissu de l'ours : force et endurance, mais du tissu
+    pump(ll, 3)
+    check(len(shown(l2, "boe")) == before, "bottes en tissu (même avec de la force) : le guerrier n'est pas prévenu")
+    loot(l1, 15008, 12)                        # Jambières en cuir : le guerrier 12 porte des mailles
+    pump(ll, 3)
+    check(len(shown(l2, "boe")) == before, "jambières en cuir : pas pour un guerrier (mailles avant le niveau 40)")
+    loot(l1, 15007, 13)                        # Cape du singe : en tissu, mais une cape va à tout le monde
+    pump(ll, 3)
+    cape = [t for t in shown(l2, "boe") if "Cape" in (t.title or "")]
+    check(len(cape) == 1 and "Dos : emplacement vide" in (cape[0].body or ""), "une cape d'agilité intéresse le guerrier")
+    r40 = l2.lua.eval("""(function()
+      local B = Mock.ns.Boe
+      local plate = { classID = 4, subclassID = 4, equipLoc = "INVTYPE_CHEST", minLevel = 40, ilvl = 45, link = Mock.link(15002) }
+      local mail = { classID = 4, subclassID = 3, equipLoc = "INVTYPE_CHEST", minLevel = 41, ilvl = 45, link = Mock.link(15002) }
+      local leather = { classID = 4, subclassID = 2, equipLoc = "INVTYPE_CHEST", minLevel = 30, ilvl = 35, link = Mock.link(15002) }
+      return tostring(B:EquipReason(plate, "WARRIOR", 38) ~= nil) .. tostring(B:EquipReason(mail, "WARRIOR", 39) ~= nil)
+        .. tostring(B:EquipReason(mail, "HUNTER", 39) ~= nil) .. tostring(B:EquipReason(leather, "HUNTER", 30) ~= nil)
+    end)()""")
+    check(r40 == "truefalsetruetrue",
+          "niveau 40 : plaques pour le guerrier, mailles pour le chasseur ; cuir pour le chasseur avant (%s)" % r40)
+
     loot(l2, 15005, 11)                        # Lame du tigre : force et agilité, inutile pour un mage
     pump(ll, 3)
     check(not any("Lame" in (t.title or "") for t in shown(l1, "boe")), "une épée de force et d'agilité n'intéresse pas le mage")

@@ -14,15 +14,17 @@ local LEVEL_MARGIN = 3     -- un objet utilisable dans 3 niveaux intéresse déj
 local GOT_WINDOW = 6       -- secondes : on regroupe les objets ramassés d'affilée avant de prévenir
 
 -- ------------------------------------------------------------------ règles de WoW Classic
--- Armures : type -> niveau à partir duquel la classe peut le porter (mailles et plaques s'apprennent au 40).
-local ARMOR = {
-  WARRIOR = { [1] = 0, [2] = 0, [3] = 0, [4] = 40, [6] = 0 },
-  PALADIN = { [1] = 0, [2] = 0, [3] = 0, [4] = 40, [6] = 0, [7] = 0 },
-  HUNTER = { [1] = 0, [2] = 0, [3] = 40 },
-  SHAMAN = { [1] = 0, [2] = 0, [3] = 40, [6] = 0, [9] = 0 },
-  ROGUE = { [1] = 0, [2] = 0 },
-  DRUID = { [1] = 0, [2] = 0, [8] = 0 },
-  PRIEST = { [1] = 0 }, MAGE = { [1] = 0 }, WARLOCK = { [1] = 0 },
+-- Armures (tissu 1, cuir 2, mailles 3, plaques 4) : on ne propose que le type principal de la classe à ce
+-- niveau. Un guerrier peut porter du tissu, mais ça ne l'intéresse jamais. Mailles et plaques s'apprennent au 40.
+local function mainArmor(class, level)
+  if class == "WARRIOR" or class == "PALADIN" then return level >= 40 and 4 or 3 end
+  if class == "HUNTER" or class == "SHAMAN" then return level >= 40 and 3 or 2 end
+  if class == "ROGUE" or class == "DRUID" then return 2 end
+  return 1
+end
+-- Boucliers 6, librams 7, idoles 8, totems 9.
+local ARMOR_EXTRA = {
+  WARRIOR = { [6] = true }, PALADIN = { [6] = true, [7] = true }, SHAMAN = { [6] = true, [9] = true }, DRUID = { [8] = true },
 }
 -- Armes : haches 0/1, arcs 2, fusils 3, masses 4/5, armes d'hast 6, épées 7/8, bâtons 10, armes de pugilat 13,
 -- dagues 15, armes de jet 16, arbalètes 18, baguettes 19.
@@ -173,9 +175,13 @@ function Boe:EquipReason(info, class, level)
   local slots = SLOTS[info.equipLoc or ""]
   if not slots then return nil end
   local sub = info.subclassID
-  if info.classID == CLASS_ARMOR and sub and sub ~= 0 and sub ~= 5 then
-    local from = (ARMOR[class] or {})[sub]
-    if not from or math.max(level, info.minLevel) < from then return nil end
+  if info.classID == CLASS_ARMOR and sub and sub ~= 0 and sub ~= 5 and info.equipLoc ~= "INVTYPE_CLOAK" then
+    -- (les capes sont en tissu mais vont à tout le monde ; bijoux, colliers et anneaux sont « divers »)
+    if sub >= 1 and sub <= 4 then
+      if sub ~= mainArmor(class, math.max(level, info.minLevel)) then return nil end
+    elseif not (ARMOR_EXTRA[class] or {})[sub] then
+      return nil
+    end
   elseif info.classID == CLASS_WEAPON then
     if not (WEAPON[class] or {})[sub] then return nil end
   elseif info.classID ~= CLASS_ARMOR then

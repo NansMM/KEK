@@ -1,5 +1,9 @@
 # Historique de KEK
 
+## 1.9.1 — 7 novembre 2026
+
+- LQE pour toi : seulement le type d'armure principal de ta classe. Un guerrier ou un paladin n'est plus prévenu pour du tissu ou du cuir : mailles avant le niveau 40, plaques ensuite. Chasseur et chaman : cuir, puis mailles au 40. Voleur et druide : cuir. Prêtre, mage et démoniste : tissu. Les capes, bijoux, colliers et anneaux vont toujours à tout le monde.
+
 ## 1.9.0 — 7 novembre 2026
 
 - Objets LQE : quand un ami ramasse un objet « Lié quand équipé » ou un sac, KEK regarde s'il t'intéresse et te prévient (« LQE pour toi »), avec la raison :

@@ -53,6 +53,12 @@ M.items = {
               subType = "Couture", bind = 2, tip = "Requiert Couture (55)" },
   [15004] = { name = "Sac en laine", q = 1, icon = 133639, ilvl = 15, minLevel = 0, classID = 1, subclassID = 0,
               subType = "Sac", bind = 0, tip = "8 emplacements Sac" },
+  [15006] = { name = "Bottes en tissu de l'ours", q = 2, icon = 132539, ilvl = 18, minLevel = 10, classID = 4, subclassID = 1,
+              subType = "Tissu", equipLoc = "INVTYPE_FEET", bind = 2, stats = { ITEM_MOD_STRENGTH_SHORT = 2, ITEM_MOD_STAMINA_SHORT = 3 } },
+  [15007] = { name = "Cape du singe", q = 2, icon = 133762, ilvl = 17, minLevel = 10, classID = 4, subclassID = 1,
+              subType = "Tissu", equipLoc = "INVTYPE_CLOAK", bind = 2, stats = { ITEM_MOD_AGILITY_SHORT = 2, ITEM_MOD_STAMINA_SHORT = 2 } },
+  [15008] = { name = "Jambières en cuir de l'ours", q = 2, icon = 134586, ilvl = 18, minLevel = 10, classID = 4, subclassID = 2,
+              subType = "Cuir", equipLoc = "INVTYPE_LEGS", bind = 2, stats = { ITEM_MOD_STRENGTH_SHORT = 3, ITEM_MOD_STAMINA_SHORT = 2 } },
   [15005] = { name = "Lame du tigre", q = 2, icon = 135274, ilvl = 20, minLevel = 8, classID = 2, subclassID = 7,
               subType = "Épées à une main", equipLoc = "INVTYPE_WEAPON", bind = 2, stats = { ITEM_MOD_STRENGTH_SHORT = 2, ITEM_MOD_AGILITY_SHORT = 2 } },
 }

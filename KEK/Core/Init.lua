@@ -10,7 +10,7 @@ ns.MAX_LEVEL = 60
 ns.L = setmetatable({}, { __index = function(_, key) return key end })
 
 local GetMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-ns.VERSION = (GetMeta and GetMeta(ADDON, "Version")) or "1.9.1"
+ns.VERSION = (GetMeta and GetMeta(ADDON, "Version")) or "1.10.0"
 
 local pcall, type, ipairs = pcall, type, ipairs
 

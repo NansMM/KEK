@@ -1,5 +1,17 @@
 # Historique de KEK
 
+## 1.10.0 — 7 novembre 2026
+
+- Caractéristiques comparées : KEK compare celles de l'objet à celles de ce que tu portes, et non plus seulement le niveau d'objet, avec l'armure et les dégâts par seconde des armes. La notification donne l'écart : « +4 Force, −1 Agilité, +2 Endurance, +5 Armure par rapport à Bottes du singe ». Une arme à deux mains est comparée à l'arme et à ce que tu tiens en main gauche, ensemble.
+- Profils : KEK juge les objets selon ce qui compte pour ton personnage (tank, mêlée, distance, soigneur ou sorts), détecté d'après ta spécialisation ou ta branche de talents la plus remplie. Tu peux le choisir à la main dans le Coffre (« Priorités »), pour chaque personnage. Ton profil est partagé avec la bande.
+- Armes à distance : les dégâts par seconde d'une baguette comptent pour les lanceurs de sorts, ceux d'un arc ou d'un fusil comptent surtout pour les chasseurs.
+- « Intéresse aussi… » : chaque KEK partage l'équipement porté par son personnage, et juge les objets pour toute la bande.
+  - Quand tu ramasses un objet LQE, une notification te dit à qui il irait : « [Bottes du tigre] intéresse Marc · Marc : +4 Force… ».
+  - Les notifications des autres disent aussi « aussi pour Kevin », et le Fil « Intéresse Marc ».
+  - Le Coffre affiche, pour chaque objet, les membres qu'il intéresse, du plus intéressé au moins intéressé (détail au survol).
+- Une pièce que tu gardes déjà dans tes sacs (pas encore enfilée, ou de rechange) compte : un objet moins bon ne t'est plus proposé.
+- Autotest : la ligne « Objets LQE » indique ton profil et l'équipement connu des autres membres.
+
 ## 1.9.1 — 7 novembre 2026
 
 - LQE pour toi : seulement le type d'armure principal de ta classe. Un guerrier ou un paladin n'est plus prévenu pour du tissu ou du cuir : mailles avant le niveau 40, plaques ensuite. Chasseur et chaman : cuir, puis mailles au 40. Voleur et druide : cuir. Prêtre, mage et démoniste : tissu. Les capes, bijoux, colliers et anneaux vont toujours à tout le monde.

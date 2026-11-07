@@ -129,7 +129,16 @@ add(L["Objets LQE"], function()
     end
   end
   local mine = ns.db.boe and ns.db.boe[ns.me] or {}
+  local profile, auto = B:MyProfile()
+  local _, specIndex = B:DetectedProfile()
+  local gearKnown = 0
+  for name in pairs(ns.db.gear or {}) do
+    if name ~= ns.me and ns.db.members[name] then gearKnown = gearKnown + 1 end
+  end
   local parts = {
+    string.format(L["profil : %s (%s)"], B.PROFILE_NAMES[profile] or profile,
+      auto and string.format(L["auto, branche %s"], tostring(specIndex or "?")) or L["choisi"]),
+    string.format(L["équipement connu de %d membre(s)"], gearKnown),
     string.format(L["liaison lue : %s"], tested == 0 and L["sacs vides"] or yes(bindRead)),
     string.format(L["%d dans tes sacs"], #(mine.b or {})),
     mine.k and string.format(L["%d en banque"], #mine.k) or L["banque pas encore ouverte"],

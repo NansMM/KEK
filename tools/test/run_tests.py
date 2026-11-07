@@ -957,7 +957,7 @@ def main():
     check(ST.IsOnline(ST, hugo), "reconnexion vue par le jeu : de nouveau en ligne")
     # Hugo sort du donjon et parle de nouveau ; une liste du jeu pas encore à jour le dit déconnecté
     p2.ns.Sync.SendState(p2.ns.Sync)
-    pump(pp, 2)
+    pump(pp, 6)                                  # l'état part en plusieurs morceaux, au rythme du jeu (1 par seconde)
     check(not PR.Silent(PR, hugo), "sortie de donjon : KEK l'entend de nouveau")
     p1.run('Mock.friends[1].connected = false; Mock.fire("FRIENDLIST_UPDATE")')
     p1.M.advance(1.5)
@@ -1152,11 +1152,95 @@ def main():
       local plate = { classID = 4, subclassID = 4, equipLoc = "INVTYPE_CHEST", minLevel = 40, ilvl = 45, link = Mock.link(15002) }
       local mail = { classID = 4, subclassID = 3, equipLoc = "INVTYPE_CHEST", minLevel = 41, ilvl = 45, link = Mock.link(15002) }
       local leather = { classID = 4, subclassID = 2, equipLoc = "INVTYPE_CHEST", minLevel = 30, ilvl = 35, link = Mock.link(15002) }
-      return tostring(B:EquipReason(plate, "WARRIOR", 38) ~= nil) .. tostring(B:EquipReason(mail, "WARRIOR", 39) ~= nil)
-        .. tostring(B:EquipReason(mail, "HUNTER", 39) ~= nil) .. tostring(B:EquipReason(leather, "HUNTER", 30) ~= nil)
+      return tostring(B:EquipReason(plate, B:ContextAs("WARRIOR", 38)) ~= nil) .. tostring(B:EquipReason(mail, B:ContextAs("WARRIOR", 39)) ~= nil)
+        .. tostring(B:EquipReason(mail, B:ContextAs("HUNTER", 39)) ~= nil) .. tostring(B:EquipReason(leather, B:ContextAs("HUNTER", 30)) ~= nil)
     end)()""")
     check(r40 == "truefalsetruetrue",
           "niveau 40 : plaques pour le guerrier, mailles pour le chasseur ; cuir pour le chasseur avant (%s)" % r40)
+
+    # caractéristiques comparées à ce que Marc porte (pondérées pour un guerrier)
+    l2.run('Mock.equipped[8] = { id = 15010 }; Mock.fire("PLAYER_EQUIPMENT_CHANGED", 8)')   # Bottes du singe usées
+    pump(ll, 3)
+    before = len(shown(l2, "boe"))
+    loot(l1, 15011, 14)                        # niveau d'objet plus haut, mais à peine mieux pour un guerrier
+    pump(ll, 3)
+    check(len(shown(l2, "boe")) == before,
+          "bottes de niveau 18 contre 16, mais force et endurance valent à peine l'agilité perdue : pas de notification")
+    loot(l1, 15012, 15)                        # nettement mieux
+    pump(ll, 3)
+    tiger = [t for t in shown(l2, "boe") if "tigre" in (t.title or "")]
+    print("        raison :", tiger[0].body if tiger else "rien")
+    check(len(tiger) == 1 and "+4 Force, −1 Agilité, +2 Endurance, +5 Armure par rapport à Bottes du singe usées" in (tiger[0].body or ""),
+          "bottes nettement meilleures : la raison donne l'écart de caractéristiques")
+    # une arme à deux mains se compare à l'arme et au bouclier tenus ensemble
+    l2.run('Mock.equipped[16] = { id = 15014 }; Mock.equipped[17] = { id = 15015 }; Mock.fire("PLAYER_EQUIPMENT_CHANGED", 16)')
+    pump(ll, 3)
+    axe = l2.lua.eval('(Mock.ns.Boe:EquipReason(Mock.ns.Boe:Info(Mock.link(15013)), Mock.ns.Boe:ContextAs("WARRIOR", 12)))')
+    print("        raison :", axe)
+    check(axe is not None and "Épée courte + Bouclier en bois" in axe and "+5.3 dégâts par seconde" in axe and "−4 Endurance" in axe,
+          "hache à deux mains comparée à l'épée et au bouclier ensemble")
+    l2.run('Mock.equipped[8] = nil; Mock.equipped[16] = nil; Mock.equipped[17] = nil; Mock.fire("PLAYER_EQUIPMENT_CHANGED", 8)')
+    pump(ll, 2)
+
+    # profils : détectés d'après la spécialisation, ou choisis à la main
+    prof = l2.lua.eval("""(function()
+      local B, me = Mock.ns.Boe, Mock.ns.db.members[Mock.ns.me]
+      local saved = me.spec
+      me.spec = { { n = "Armes", p = 0 }, { n = "Fureur", p = 2 }, { n = "Protection", p = 11 } }
+      local tank = B:DetectedProfile()
+      me.spec = { { n = "Armes", p = 0 }, { n = "Fureur", p = 0 }, { n = "Protection", p = 0 } }
+      local none = B:DetectedProfile()
+      me.spec = saved
+      return tank .. "," .. none .. "," .. (B:MyProfile())
+    end)()""")
+    check(prof == "tank,melee,melee", "profil détecté : Protection -> tank, pas de talents -> mêlée (%s)" % prof)
+    l2.run('Mock.equipped[8] = { id = 15010 }; Mock.fire("PLAYER_EQUIPMENT_CHANGED", 8)')        # Bottes du singe usées
+    pump(ll, 3)
+    melee = l2.lua.eval('(Mock.ns.Boe:Interest(Mock.link(15018)))')
+    l2.ns.Boe.SetProfile(l2.ns.Boe, "tank")
+    tank = l2.lua.eval('(Mock.ns.Boe:Interest(Mock.link(15018)))')
+    print("        raison (tank) :", tank)
+    check(melee is None and tank is not None and "+4 Endurance" in tank and "+20 Armure" in tank,
+          "bottes d'endurance et d'armure : rien en mêlée, intéressantes une fois le profil « Tank » choisi")
+    check(l2.ns.char.profile == "tank" and l2.ns.Boe.MyProfile(l2.ns.Boe)[0] == "tank", "profil choisi gardé pour ce personnage")
+    pump(ll, 12)
+    check(l1.ns.db.members[l2.full].profile == "tank", "le profil de Marc est partagé avec la bande")
+    l2.ns.Boe.SetProfile(l2.ns.Boe, "auto")
+    check(l2.ns.char.profile is None, "retour au profil automatique")
+
+    # armes à distance : une meilleure baguette intéresse le mage
+    l1.run('Mock.equipped[18] = { id = 15017 }; Mock.fire("PLAYER_EQUIPMENT_CHANGED", 18)')     # Baguette en bois (5 dps)
+    pump(ll, 3)
+    loot(l2, 15016, 9)                         # Baguette de feu (8,5 dps)
+    pump(ll, 3)
+    wand = [t for t in shown(l1, "boe") if "Baguette" in (t.title or "")]
+    check(len(wand) == 1 and "+3.5 dégâts par seconde par rapport à Baguette en bois" in (wand[0].body or ""),
+          "baguette : +3.5 dégâts par seconde pour le mage (%s)" % (wand[0].body if wand else "rien"))
+
+    # équipement partagé : chacun peut juger pour toute la bande
+    pump(ll, 12)
+    check(l1.ns.db.gear[l2.full] is not None and l1.ns.db.gear[l2.full].s[8] is not None, "Lucas connaît l'équipement porté par Marc")
+    fans = list(l1.ns.Boe.Fans(l1.ns.Boe, l1.M.link(15012), l1.full).values())
+    check(any(f.who == l2.full for f in fans), "Lucas sait que les bottes du tigre intéressent Marc")
+    before = len(shown(l1, "boefor"))
+    loot(l1, 15012, 16)                        # Lucas ramasse un deuxième exemplaire
+    pump(ll, 3)
+    mine = shown(l1, "boefor")[before:]
+    check(len(mine) == 1 and "intéresse" in mine[0].title and "Marc" in mine[0].title,
+          "Lucas ramasse des bottes : « … intéresse Marc » (%s)" % (mine[0].title if mine else "rien"))
+    own = [e for e in l1.ns.db.feed.values() if e.k == "boe" and e.w == l1.full and str(e.i).find("15012") >= 0]
+    check(own and "Intéresse" in (l1.ns.Alerts.Describe(l1.ns.Alerts, own[0].w, own[0])[1] or ""),
+          "dans le fil de Lucas : « Intéresse Marc »")
+    # déjà aussi bien dans ses sacs : plus d'intérêt
+    l2.run('Mock.bags[0][8] = { id = 15012, count = 1, bound = true }')
+    l2.M.fire("BAG_UPDATE_DELAYED")
+    pump(ll, 3)
+    check(l2.lua.eval('(Mock.ns.Boe:Interest(Mock.link(15012)))') is None,
+          "Marc garde déjà ces bottes (liées) dans ses sacs : pas d'intérêt")
+    l2.run('Mock.bags[0][8] = nil; Mock.equipped[8] = nil; Mock.fire("PLAYER_EQUIPMENT_CHANGED", 8)')
+    l1.run('Mock.equipped[18] = nil; Mock.fire("PLAYER_EQUIPMENT_CHANGED", 18)')
+    l2.M.fire("BAG_UPDATE_DELAYED")
+    pump(ll, 3)
 
     loot(l2, 15005, 11)                        # Lame du tigre : force et agilité, inutile pour un mage
     pump(ll, 3)
@@ -1181,9 +1265,9 @@ def main():
     chest = list(l1.ns.Boe.All(l1.ns.Boe).values())
     marc = [e for e in chest if e.owner == l2.full and e.place == "b"]
     robes = [e for e in marc if e.s.startswith("item:15001")]
-    check(len(marc) == 4 and len(robes) == 1 and robes[0].n == 1,
-          "coffre de Lucas : les 4 objets échangeables de Marc, la robe liée en moins (%d)" % len(marc))
-    check(l1.ns.Boe.ForMe(l1.ns.Boe) == 3, "3 objets pour Lucas : robe, patron, sac (%d)" % l1.ns.Boe.ForMe(l1.ns.Boe))
+    check(len(marc) == 5 and len(robes) == 1 and robes[0].n == 1,
+          "coffre de Lucas : les 5 objets échangeables de Marc, la robe liée en moins (%d)" % len(marc))
+    check(l1.ns.Boe.ForMe(l1.ns.Boe) == 4, "4 objets pour Lucas : robe, baguette, patron, sac (%d)" % l1.ns.Boe.ForMe(l1.ns.Boe))
 
     # banque : Marc range la robe
     l2.run("Mock.bags[0][10] = nil; Mock.bags[-1] = { [1] = { id = 15001, count = 1 } }")
@@ -1256,7 +1340,7 @@ def main():
     pump(ll, 7)
     lq = [x for x in l1.ns.Autotest.last.text.split(chr(10)) if "Objets LQE" in x]
     print("       |", lq[0] if lq else "(pas de ligne)")
-    check(lq and lq[0].startswith("[OK]") and "3 objet(s) de la bande pour toi" in lq[0], "autotest : ligne « Objets LQE »")
+    check(lq and lq[0].startswith("[OK]") and "4 objet(s) de la bande pour toi" in lq[0], "autotest : ligne « Objets LQE »")
     clients += ll
 
     print("Menu Options : repli si l'API du jeu diffère")

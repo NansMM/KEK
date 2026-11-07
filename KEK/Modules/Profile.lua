@@ -9,7 +9,7 @@ local FIELDS = {
   c = "class", r = "race", rn = "raceName", sx = "sex", l = "level", x = "xp", rx = "rested",
   z = "zone", sz = "sub", g = "guild", n = "nick", sp = "spec", pr = "profs", dc = "deaths",
   pl = "played", eta = "eta", etd = "etaDate", ss = "session", ver = "ver", dead = "dead",
-  ins = "instance",
+  ins = "instance", pf = "profile",
 }
 
 -- Interface récente : une spécialisation choisie, sans arbres à points.
@@ -135,6 +135,7 @@ function Profile:Snapshot()
   m.ver = ns.VERSION
   m.dead = UnitIsDeadOrGhost("player") and true or nil
   m.instance = IsInInstance() and true or nil
+  m.profile = ns.Boe and ns.Boe.MyProfile and (ns.Boe:MyProfile()) or nil
   return m
 end
 

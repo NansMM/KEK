@@ -219,6 +219,18 @@ function Alerts:Receive(who, data, isSelf)
   end
 end
 
+-- Les autres membres que l'objet intéresse (ni toi, ni celui qui l'a ramassé) : « Kevin et Lucas ».
+function Alerts:BoeOthers(who, e)
+  if not ns.Boe then return nil end
+  local names = {}
+  for _, f in ipairs(ns.Boe:Fans(e.i, who)) do
+    if f.who ~= ns.me then names[#names + 1] = U.Short(f.who) end
+  end
+  if #names == 0 then return nil end
+  if #names > 2 then return string.format(L["%s et %d autre(s)"], table.concat(names, ", ", 1, 2), #names - 2) end
+  return table.concat(names, L[" et "])
+end
+
 -- L'objet LQE intéresse-t-il ton personnage ? (texte de la raison, ou nil)
 function Alerts:BoeReason(who, e)
   if who == ns.me or not ns.Boe then return nil end
@@ -261,9 +273,16 @@ function Alerts:Describe(who, e)
     return string.format(L["%s a obtenu"], name), item
   elseif e.k == "boe" then
     local item = U.ItemText(e.i, U.ItemID(e.i))
+    local title = string.format(L["%s a ramassé %s"], name, item)
     local reason = self:BoeReason(who, e)
-    if reason then return string.format(L["%s a ramassé %s"], name, item), string.format(L["Pour toi : %s"], reason) end
-    return string.format(L["%s a ramassé %s"], name, item), L["Lié quand équipé : on peut se l'échanger"]
+    local others = self:BoeOthers(who, e)
+    if reason then
+      local body = string.format(L["Pour toi : %s"], reason)
+      if others then body = body .. " · " .. string.format(L["aussi pour %s"], others) end
+      return title, body
+    end
+    if others then return title, string.format(L["Intéresse %s"], others) end
+    return title, L["Lié quand équipé : on peut se l'échanger"]
   elseif e.k == "got" then
     local item = U.ItemText(e.i, U.ItemID(e.i))
     if (e.c or 1) > 1 then item = item .. " ×" .. e.c end

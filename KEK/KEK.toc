@@ -2,7 +2,7 @@
 ## Title: |cffff8c3dKEK|r
 ## Notes: Le compagnon de ta bande d'amis : membres, alertes, Hall of Shame, soirée, course au 60 et atelier.
 ## Author: Nans
-## Version: 1.9.1
+## Version: 1.10.0
 ## IconTexture: Interface\AddOns\KEK\Media\logo
 ## AddonCompartmentFunc: KEK_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: KEK_OnAddonCompartmentEnter

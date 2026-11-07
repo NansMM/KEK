@@ -74,14 +74,19 @@ local function buildData(query)
   local data = {}
   for _, e in ipairs(ns.Boe:All()) do
     local info = ns.Boe:Info(e.s)
-    local reason = e.owner ~= ns.me and ns.Boe:Interest(e.s) or nil
+    -- à qui il irait : toi (« Pour toi ») et les autres membres, du plus intéressé au moins intéressé
+    local reason, others = nil, {}
+    for _, f in ipairs(ns.Boe:Fans(e.s, not e.guild and e.owner or nil)) do
+      if f.who == ns.me then reason = f.reason else others[#others + 1] = f end
+    end
     local name = info and info.name or ""
     local keep = (mode == "all") or (mode == "forme" and reason ~= nil) or (mode == "mine" and e.mine)
     if keep and q ~= "" then keep = U.Fold(name):find(q, 1, true) ~= nil or U.Fold(ownerLabel(e)):find(q, 1, true) ~= nil end
-    if keep then data[#data + 1] = { e = e, info = info, reason = reason, name = name } end
+    if keep then data[#data + 1] = { e = e, info = info, reason = reason, others = others, name = name } end
   end
   table.sort(data, function(a, b)
     if (a.reason ~= nil) ~= (b.reason ~= nil) then return a.reason ~= nil end
+    if (#a.others > 0) ~= (#b.others > 0) then return #a.others > 0 end
     local qa, qb = a.info and a.info.q or 0, b.info and b.info.q or 0
     if qa ~= qb then return qa > qb end
     if a.name ~= b.name then return a.name < b.name end
@@ -105,6 +110,8 @@ local function createRow(list)
   row.where = UI.Text(row, 11, C.muted)
   row.where:SetPoint("TOPLEFT", row.sub, "BOTTOMLEFT", 0, -3)
   row.forMe = UI.Chip(row, 22)
+  row.fans = {}
+  for i = 1, 3 do row.fans[i] = UI.Chip(row, 22) end
   row.ask = UI.Button(row, { text = L["Demander"], icon = "chat", style = "secondary", h = 26, size = 12 })
   row.ask:SetPoint("RIGHT", row, "RIGHT", -12, 0)
   UI.Tip(row, function(tt, self)
@@ -115,6 +122,15 @@ local function createRow(list)
     tt:AddLine(" ")
     tt:AddLine(whereText(data.e), 1, 0.82, 0.5)
     if data.reason then tt:AddLine(string.format(L["Pour toi : %s"], data.reason), 0.38, 0.86, 0.56, true) end
+    if #data.others > 0 then
+      tt:AddLine(" ")
+      tt:AddLine(L["Intéresse aussi"], 1, 0.55, 0.24)
+      for _, f in ipairs(data.others) do
+        local m = ns.db.members[f.who]
+        local r, g, b = U.ClassColor(m and m.class)
+        tt:AddLine(U.Short(f.who) .. " : " .. f.reason, r, g, b, true)
+      end
+    end
     tt:AddLine(" ")
     tt:AddLine(L["Clic droit : demander, ajouter à tes besoins · Maj+clic : lien dans le chat"], 0.5, 0.52, 0.58, true)
   end, "ANCHOR_CURSOR")
@@ -172,12 +188,44 @@ local function updateRow(row, data)
   row.ask:SetScript("OnClick", function() U.Click(); ask(e) end)
   row.forMe:ClearAllPoints()
   row.forMe:SetPoint("RIGHT", canAsk and row.ask or row, canAsk and "LEFT" or "RIGHT", canAsk and -10 or -12, 0)
+  local anchor, side = canAsk and row.ask or row, canAsk and "LEFT" or "RIGHT"
+  local gap = canAsk and -10 or -12
   if data.reason then
     row.forMe:Set(L["Pour toi"], C.good, "check")
     row.forMe:Show()
+    anchor, side, gap = row.forMe, "LEFT", -6
   else
     row.forMe:Hide()
   end
+  -- les autres membres que l'objet intéresse (le premier est le plus intéressé)
+  for i, chip in ipairs(row.fans) do
+    local f = data.others[i]
+    if f and i <= 2 then
+      local m = ns.db.members[f.who]
+      local r, g, b = U.ClassColor(m and m.class)
+      chip:Set(U.Short(f.who), { r, g, b, 1 }, "users")
+      chip:ClearAllPoints()
+      chip:SetPoint("RIGHT", anchor, side, gap, 0)
+      chip:Show()
+      anchor, side, gap = chip, "LEFT", -6
+    elseif f and i == 3 then
+      chip:Set("+" .. (#data.others - 2), C.muted)
+      chip:ClearAllPoints()
+      chip:SetPoint("RIGHT", anchor, side, gap, 0)
+      chip:Show()
+    else
+      chip:Hide()
+    end
+  end
+end
+
+-- Profil (priorités de caractéristiques) de ton personnage : automatique ou choisi.
+local profileItems = {}
+local function profileLabel(value)
+  if value == "auto" then
+    return string.format(L["Priorités : auto (%s)"], ns.Boe.PROFILE_NAMES[(ns.Boe:DetectedProfile())] or "?")
+  end
+  return string.format(L["Priorités : %s"], ns.Boe.PROFILE_NAMES[value] or value)
 end
 
 function View:Build(frame, actions)
@@ -188,8 +236,20 @@ function View:Build(frame, actions)
   end })
   search:SetHeight(34)
   search:SetPoint("TOPLEFT", 0, 0)
-  search:SetPoint("TOPRIGHT", 0, 0)
   self.search = search
+
+  profileItems[1] = { value = "auto", label = profileLabel("auto") }
+  for _, key in ipairs(ns.Boe.PROFILES) do profileItems[#profileItems + 1] = { value = key, label = profileLabel(key) } end
+  self.profile = UI.Dropdown(frame, { w = 230, h = 34, items = profileItems, value = ns.char.profile or "auto", onChange = function(v)
+    ns.Boe:SetProfile(v)
+    self:Refresh()
+  end })
+  self.profile:SetPoint("TOPRIGHT", 0, 0)
+  UI.Tip(self.profile, function(tt)
+    tt:AddLine(L["Ce qui compte pour ce personnage"], 1, 1, 1)
+    tt:AddLine(L["KEK compare les caractéristiques des objets avec ce que tu portes, chacune comptée selon ce profil : endurance et armure pour un tank, intelligence et esprit pour un soigneur, force ou agilité en mêlée, agilité et arme à distance pour un chasseur, intelligence et baguette pour les sorts. En automatique, KEK suit ta spécialisation."], 0.75, 0.76, 0.8, true)
+  end)
+  search:SetPoint("RIGHT", self.profile, "LEFT", -10, 0)
 
   self.list = UI.List(frame, {
     gap = 4, rowHeight = 62, create = createRow, update = updateRow,
@@ -206,6 +266,8 @@ function View:Build(frame, actions)
 end
 
 function View:Refresh()
+  profileItems[1].label = profileLabel("auto")
+  self.profile:SetValue(ns.char.profile or "auto")
   local data = buildData(self.query)
   self.list:SetData(data, true)
   if self.list.empty and #data == 0 then
